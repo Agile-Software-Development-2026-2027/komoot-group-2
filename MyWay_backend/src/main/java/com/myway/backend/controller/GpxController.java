@@ -13,24 +13,24 @@ public class GpxController {
     public ResponseEntity<String> caricaEVisualizzaGpx(@RequestParam("file") MultipartFile file) {
         // 1. Controlla se il file è vuoto
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("Errore: Il file selezionato è vuoto!");
+            return ResponseEntity.badRequest().body("Error: The selected file is empty!");
         }
 
         // 2. CONTROLLO ESTENSIONE: Accetta solo file .gpx
         String nomeFile = file.getOriginalFilename();
         if (nomeFile == null || !nomeFile.toLowerCase().endsWith(".gpx")) {
-            return ResponseEntity.badRequest().body("Errore: Formato non supportato. Puoi caricare SOLO file con estensione .gpx");
+            return ResponseEntity.badRequest().body("Error: Unsupported format. You can ONLY upload files with a .gpx extension.");
         }
 
         try {
             // 3. Legge e mostra il contenuto se il file è valido
             String contenutoGpx = new String(file.getBytes(), StandardCharsets.UTF_8);
             
-            String risposta = "OK, file .gpx caricato con successo!\n\n--- CONTENUTO VISUALIZZATO ---\n" + contenutoGpx;
+            String risposta = " .gpx file uploaded successfully!\n\n--- DISPLAYED CONTENT ---\n" + contenutoGpx;
             return ResponseEntity.ok(risposta);
             
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("Errore durante la lettura del file: " + e.getMessage());
+            return ResponseEntity.status(500).body("Error while reading the file: " + e.getMessage());
         }
     }
 }
