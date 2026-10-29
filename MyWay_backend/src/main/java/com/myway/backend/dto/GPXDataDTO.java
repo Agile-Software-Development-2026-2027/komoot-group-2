@@ -34,6 +34,7 @@ public class GPXDataDTO {
     public static class PointDTO {
         private double latitude;
         private double longitude;
+        private double elevation;
         private String name;
     }
 }
