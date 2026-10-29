@@ -1,12 +1,12 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component } from '@angular/core';
+import { MenuBar } from './menu-bar/menu-bar';
+import { ItalyMap } from './italy-map/italy-map';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [ItalyMap,MenuBar],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
-  protected readonly title = signal('MyWay_frontend');
 }
