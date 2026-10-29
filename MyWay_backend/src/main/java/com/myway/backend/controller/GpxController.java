@@ -1,36 +1,29 @@
 package com.myway.backend.controller;
 
+import com.myway.backend.service.GpxService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/gpx")
+@CrossOrigin(origins = "*") // permit angular frontend to access this endpoint
 public class GpxController {
 
+    private final GpxService gpxService;
+
+    // Dependency Injection tramite costruttore (Best Practice Spring)
+    public GpxController(GpxService gpxService) {
+        this.gpxService = gpxService;
+    }
+
     @PostMapping("/upload")
-    public ResponseEntity<String> caricaEVisualizzaGpx(@RequestParam("file") MultipartFile file) {
-        // 1. Controlla se il file è vuoto
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("Error: The selected file is empty!");
-        }
-
-        // 2. CONTROLLO ESTENSIONE: Accetta solo file .gpx
-        String nomeFile = file.getOriginalFilename();
-        if (nomeFile == null || !nomeFile.toLowerCase().endsWith(".gpx")) {
-            return ResponseEntity.badRequest().body("Error: Unsupported format. You can ONLY upload files with a .gpx extension.");
-        }
-
-        try {
-            // 3. Legge e mostra il contenuto se il file è valido
-            String contenutoGpx = new String(file.getBytes(), StandardCharsets.UTF_8);
-            
-            String risposta = " .gpx file uploaded successfully!\n\n--- DISPLAYED CONTENT ---\n" + contenutoGpx;
-            return ResponseEntity.ok(risposta);
-            
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error while reading the file: " + e.getMessage());
-        }
+    public ResponseEntity<String> uploadGpx(@RequestParam("file") MultipartFile file) {
+        // to send the file to the service layer for validation and storage
+        gpxService.salvaGpxInMemoria(file);
+        
+        // if the service method completes without throwing an exception, we return a success response
+        return ResponseEntity.ok("File GPX uploaded and stored successfully in memory!");
     }
 }
+
