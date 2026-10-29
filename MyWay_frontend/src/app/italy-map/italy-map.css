@@ -1,0 +1,95 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px rgba(31, 42, 68, 0.18);
+  border: 1px solid #d5dbe7;
+}
+
+
+:host ::ng-deep .map-tools {
+  position: relative;
+  margin-top: 10px;
+}
+
+:host ::ng-deep .map-tool-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: #333;
+  cursor: pointer;
+}
+
+:host ::ng-deep .map-tool-btn:hover {
+  background: #f4f4f4;
+  color: #1f2a44;
+}
+
+/*  Map Style List  */
+:host ::ng-deep .style-panel {
+  display: none;
+  position: absolute;
+  top: 32px; 
+  left: 40px;
+  min-width: 160px;
+  padding: 6px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+:host ::ng-deep .style-panel.open {
+  display: block;
+}
+
+:host ::ng-deep .style-panel-title {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #7a8499;
+}
+
+:host ::ng-deep .style-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  color: #1f2a44;
+  cursor: pointer;
+  text-align: left;
+}
+
+:host ::ng-deep .style-item:hover {
+  background: #f1f4fa;
+}
+
+:host ::ng-deep .style-item.active {
+  font-weight: 600;
+}
+
+:host ::ng-deep .style-check {
+  visibility: hidden;
+  color: #1e88e5;
+  font-weight: 700;
+}
+
+:host ::ng-deep .style-item.active .style-check {
+  visibility: visible;
+}
