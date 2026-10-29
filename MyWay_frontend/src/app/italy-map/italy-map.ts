@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
 import * as L from 'leaflet';
+import { GpxHandler } from '../services/gpx-handler';
 
 
 L.Marker.prototype.options.icon = L.icon({
@@ -86,9 +87,11 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private currentStyleId = 'standard';
   private styleItems: { id: string; el: HTMLElement }[] = [];
   private stylePanel?: HTMLElement;
+  private routeLayer?: L.Polyline; //manage gpx track
 
   // Italy Border [N - S - E - W]
   private readonly italyBounds = L.latLngBounds([36.4, 6.7], [47.1, 18.6]);
+  constructor(private gpxHandler: GpxHandler){}
 
   ngAfterViewInit(): void {
     this.map = L.map(this.mapContainer.nativeElement, {
@@ -113,6 +116,25 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
     // Mark Roma
     L.marker([41.9028, 12.4964]).addTo(this.map).bindPopup('<b>روما</b><br>عاصمة إيطاليا');
+    //visualize loaded gpx file
+    this.renderMockTrack();
+  }
+
+  private renderMockTrack(): void{
+    if(!this.map) return;
+
+    const mockData = this.gpxHandler.mockGpxData;
+    const coordinates = this.gpxHandler.parseGpx(mockData);
+
+    if(coordinates.length > 0) {
+      this.routeLayer = L.polyline(coordinates, {
+        color: 'red',
+        weight: 5,
+        opacity: 0.8
+      }).addTo(this.map);
+
+      this.map.fitBounds(this.routeLayer.getBounds(), { padding: [20, 20] });
+    }
   }
 
   /** Switch the style to the selected style */
