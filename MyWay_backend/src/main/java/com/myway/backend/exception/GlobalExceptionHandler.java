@@ -15,7 +15,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getLocalizedMessage());
     }
 
-    // Manages the exception for file size exceeding the limit (Step 1 - Criterion 4)
+    // Manages the exception for file size exceeding the limit 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<String> handleMaxSizeException(MaxUploadSizeExceededException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -27,5 +27,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleGenericException(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body("An unexpected server error occurred: " + ex.getMessage());
+    }
+
+        // catch-all for other exceptions, returning a generic error message
+    @ExceptionHandler({ ResourceAccessException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNotFoundException(Exception e) {
+           return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse("Resource not Found."));
+    }
+
+    @ExceptionHandler({ BadRequest.class, HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class, MethodArgumentNotValidException.class })
+    public ResponseEntity<ErrorResponse> handleBadRequestException(Exception e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse("Bad Request."));
     }
 }
