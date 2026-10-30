@@ -12,5 +12,5 @@ public interface StatisticsService {
     double trackLength(RouteDTO track);
 
     // Straight-line track lenght
-    double straightLineTrackLenght(RouteDTO track);
+    double straightLineTrackLength(RouteDTO track);
 }
