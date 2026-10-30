@@ -1,0 +1,16 @@
+spring:
+  profiles:
+    active:
+      - test
+  application:
+    name: komoot-group-2
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
