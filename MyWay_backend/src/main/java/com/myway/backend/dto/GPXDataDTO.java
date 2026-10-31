@@ -31,9 +31,10 @@ public class GPXDataDTO {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class PointDTO {
+    public static class PointDTO{
         private double latitude;
         private double longitude;
+        private double elevation;
         private String name;
     }
 }
