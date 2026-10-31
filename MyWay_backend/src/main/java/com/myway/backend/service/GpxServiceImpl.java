@@ -15,7 +15,7 @@ public class GpxServiceImpl implements GpxService {
     private final Map<String, byte[]> archivioTemporaneo = new ConcurrentHashMap<>();
 
     @Override
-    public void salvaGpxInMemoria(MultipartFile file) {
+    public void saveGpxInMemoria(MultipartFile file) {
         // Criteria 1: Check if the file is empty
         if (file == null || file.isEmpty()) {
             throw new GpxValidationException("Error: The selected file is empty!");
