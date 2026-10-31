@@ -1,6 +1,9 @@
-# Project name
+# MyWay
 
-One paragraph: what the project is.
+**MyWay** is an outdoor route planning and navigation platform inspired by Komoot. The application enables users to plan custom routes, discover new trails, and analyze route metrics such as distance, elevation, and estimated duration. MyWay supports GPX track upload and parsing, interactive map visualization, and route sharing.
+
+- Backend: Spring Boot (`MyWay_backend/`) & PostgreSQL;
+- Frontend: Angular (`MyWay_frontend/`);
 
 ## How we work
 
