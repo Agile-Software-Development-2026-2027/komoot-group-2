@@ -16,7 +16,7 @@ export class GpxUploadComponent {
   errorMessage = '';
   successMessage = '';
 
-  // Dimensione massima consentita: 10 MB
+  // maximum file size in bytes (10 MB)
   private readonly MAX_FILE_SIZE = 10 * 1024 * 1024;
 
   onDragOver(event: DragEvent): void {
@@ -58,16 +58,16 @@ export class GpxUploadComponent {
     }
 
     this.errorMessage = '';
-    this.successMessage = `Controllo del file "${file.name}" in corso...`;
+    this.successMessage = `Checking file "${file.name}"...`;
 
-    // Aggiorna subito la schermata
+    // update the view to show the checking message before starting validation
     this.cdr.detectChanges();
 
     this.validateFile(file).finally(() => {
       this.cdr.detectChanges();
     });
 
-    // Permette di selezionare nuovamente lo stesso file
+    // permit to select the same file again
     input.value = '';
   }
 
@@ -77,18 +77,18 @@ export class GpxUploadComponent {
 
     // 1. Controllo estensione
     if (!file.name.toLowerCase().endsWith('.gpx')) {
-      this.errorMessage = 'Formato non valido. Seleziona un file GPX.';
+      this.errorMessage = 'Invalid format. Please select a GPX file.';
       return;
     }
 
     // 2. Controllo dimensione
     if (file.size === 0) {
-      this.errorMessage = 'Il file selezionato è vuoto.';
+      this.errorMessage = 'The selected file is empty.';
       return;
     }
 
     if (file.size > this.MAX_FILE_SIZE) {
-      this.errorMessage = 'Il file è troppo grande. La dimensione massima consentita è 10 MB.';
+      this.errorMessage = 'The file is too large. The maximum allowed size is 10 MB.';
       return;
     }
 
@@ -102,14 +102,14 @@ export class GpxUploadComponent {
       const parserError = xml.querySelector('parsererror');
 
       if (parserError) {
-        this.errorMessage = 'Il file GPX non contiene un XML valido.';
+        this.errorMessage = 'The selected file does not contain a valid XML.';
         return;
       }
 
       const root = xml.documentElement;
 
       if (!root || root.localName.toLowerCase() !== 'gpx') {
-        this.errorMessage = 'Il file selezionato non contiene un documento GPX valido.';
+        this.errorMessage = 'The selected file is not a valid GPX document.';
         return;
       }
 
@@ -120,15 +120,15 @@ export class GpxUploadComponent {
       const totalPoints = points.length + routePoints.length;
 
       if (totalPoints < 2) {
-        this.errorMessage = 'Il file GPX non contiene un percorso valido.';
+        this.errorMessage = 'The selected GPX file does not contain a valid route.';
         return;
       }
 
       this.successMessage =
-        `File "${file.name}" selezionato e validato correttamente.`;
+        `File "${file.name}" selected and validated successfully.`;
 
     } catch {
-      this.errorMessage = 'Errore durante la lettura del file GPX.';
+      this.errorMessage = 'An error occurred while reading the GPX file.';
     }
   }
 }

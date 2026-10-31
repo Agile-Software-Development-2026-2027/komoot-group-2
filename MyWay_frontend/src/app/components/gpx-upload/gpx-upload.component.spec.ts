@@ -55,7 +55,7 @@ describe('GpxUploadComponent', () => {
     await validateFile(file);
 
     expect(component.errorMessage).toBe('');
-    expect(component.successMessage).toContain('validato correttamente');
+    expect(component.successMessage).toContain('validated successfully');
   });
 
   it('should reject files with an invalid extension', async () => {
@@ -63,7 +63,7 @@ describe('GpxUploadComponent', () => {
 
     await validateFile(file);
 
-    expect(component.errorMessage).toContain('Formato non valido');
+    expect(component.errorMessage).toContain('Invalid format');
     expect(component.successMessage).toBe('');
   });
 
@@ -72,7 +72,7 @@ describe('GpxUploadComponent', () => {
 
     await validateFile(file);
 
-    expect(component.errorMessage).toContain('vuoto');
+    expect(component.errorMessage).toContain('file is empty');
   });
 
   it('should reject files larger than 10 MB', async () => {
@@ -83,15 +83,18 @@ describe('GpxUploadComponent', () => {
 
     await validateFile(file);
 
-    expect(component.errorMessage).toContain('troppo grande');
+    expect(component.errorMessage).toContain('too large');
   });
 
   it('should reject invalid XML content', async () => {
-    const file = createFile('invalid.gpx', '<gpx><trkpt></gpx>');
+    const file = createFile(
+      'invalid.gpx',
+      '<gpx><trkpt></gpx>'
+    );
 
     await validateFile(file);
 
-    expect(component.errorMessage).toContain('XML valido');
+    expect(component.errorMessage).toContain('valid XML');
   });
 
   it('should reject XML documents with a root different from gpx', async () => {
@@ -102,7 +105,7 @@ describe('GpxUploadComponent', () => {
 
     await validateFile(file);
 
-    expect(component.errorMessage).toContain('documento GPX valido');
+    expect(component.errorMessage).toContain('not a valid GPX document');
   });
 
   it('should reject GPX files with fewer than two track or route points', async () => {
@@ -121,6 +124,6 @@ describe('GpxUploadComponent', () => {
 
     await validateFile(file);
 
-    expect(component.errorMessage).toContain('percorso valido');
+    expect(component.errorMessage).toContain('valid route');
   });
 });
