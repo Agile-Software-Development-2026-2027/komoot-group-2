@@ -1,6 +1,7 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, inject } from '@angular/core';
+import { Subscription } from 'rxjs';
 import * as L from 'leaflet';
-
+import { GpxService, ParsedGpx } from '../services/gpx.service';
 
 L.Marker.prototype.options.icon = L.icon({
   iconUrl: 'leaflet/marker-icon.png',
@@ -11,7 +12,6 @@ L.Marker.prototype.options.icon = L.icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
 });
-
 
 const PEN_ICON = `
 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
@@ -28,7 +28,6 @@ const LAYERS_ICON = `
   <path d="m2 17 10 5 10-5" />
 </svg>`;
 
-// define the Map Style
 interface MapStyle {
   id: string;
   label: string;
@@ -81,11 +80,16 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   @ViewChild('mapContainer', { static: true })
   mapContainer!: ElementRef<HTMLDivElement>;
 
+  private readonly gpxService = inject(GpxService);
+
   private map?: L.Map;
   private baseLayer?: L.TileLayer;
   private currentStyleId = 'standard';
   private styleItems: { id: string; el: HTMLElement }[] = [];
   private stylePanel?: HTMLElement;
+
+  private gpxLayerGroup?: L.FeatureGroup;
+  private gpxSubscription?: Subscription;
 
   // Italy Border [N - S - E - W]
   private readonly italyBounds = L.latLngBounds([36.4, 6.7], [47.1, 18.6]);
@@ -100,7 +104,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       maxBoundsViscosity: 0.8,
     });
 
-    //  Default standard
+    // Default standard
     this.applyStyle(this.currentStyleId);
 
     // Zooming on Italy when open the website
@@ -108,11 +112,87 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
     this.addToolsControl();
 
-    // When click on the map the Map Style list will close 
+    // When click on the map the Map Style list will close
     this.map.on('click', () => this.toggleStylePanel(false));
 
     // Mark Roma
-    L.marker([41.9028, 12.4964]).addTo(this.map).bindPopup('<b>روما</b><br>عاصمة إيطاليا');
+    L.marker([41.9028, 12.4964]).addTo(this.map).bindPopup('Roma');
+
+    // Subscribe to loaded GPX
+    this.gpxSubscription = this.gpxService.currentGpx$.subscribe((gpx) => {
+      if (gpx) {
+        this.renderGpx(gpx);
+      }
+    });
+  }
+
+  /**
+   * Renders parsed GPX tracks and waypoints on the Leaflet map.
+   */
+  public renderGpx(data: ParsedGpx): void {
+    if (!this.map) return;
+
+    if (!this.gpxLayerGroup) {
+      this.gpxLayerGroup = L.featureGroup().addTo(this.map);
+    } else {
+      this.gpxLayerGroup.clearLayers();
+    }
+
+    // 1. Draw tracks and routes
+    for (const track of data.tracks) {
+      for (const seg of track.segments) {
+        if (seg.points.length > 0) {
+          const polyline = L.polyline(seg.points, {
+            color: '#0284c7',
+            weight: 5,
+            opacity: 0.85,
+            lineJoin: 'round',
+          });
+          if (track.name) {
+            polyline.bindPopup(`<b>Traccia:</b> ${this.escapeHtml(track.name)}`);
+          }
+          polyline.addTo(this.gpxLayerGroup);
+        }
+      }
+    }
+
+    // 2. Draw waypoints
+    for (const wp of data.waypoints) {
+      const marker = L.marker([wp.lat, wp.lon]);
+      let popupContent = '<div class="waypoint-popup" style="font-family: inherit;">';
+      if (wp.name) {
+        popupContent += `<strong style="font-size: 14px;">${this.escapeHtml(wp.name)}</strong>`;
+      } else {
+        popupContent += `<strong style="font-size: 14px;">Waypoint</strong>`;
+      }
+      if (wp.desc) {
+        popupContent += `<div style="font-size: 12px; margin-top: 4px; color: #4b5563;">${this.escapeHtml(wp.desc)}</div>`;
+      }
+      if (wp.ele !== undefined && !isNaN(wp.ele)) {
+        popupContent += `<div style="font-size: 12px; margin-top: 4px; color: #1e293b;"><b>Altitude:</b> ${wp.ele} m</div>`;
+      }
+      const latDir = wp.lat >= 0 ? 'N' : 'S';
+      const lonDir = wp.lon >= 0 ? 'E' : 'W';
+      popupContent += `<div style="font-size: 11px; margin-top: 4px; color: #64748b;">${Math.abs(wp.lat).toFixed(5)}° ${latDir}, ${Math.abs(wp.lon).toFixed(5)}° ${lonDir}</div>`;
+      popupContent += '</div>';
+
+      marker.bindPopup(popupContent);
+      marker.addTo(this.gpxLayerGroup);
+    }
+
+    // 3. Auto-zoom
+    const bounds = this.gpxLayerGroup.getBounds();
+    if (bounds.isValid()) {
+      // Clear strict bounds so tracks outside Italy can be viewed
+      this.map.setMaxBounds(undefined);
+      this.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    }
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   /** Switch the style to the selected style */
@@ -131,7 +211,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       subdomains: style.subdomains ?? 'abc',
     }).addTo(this.map);
 
-  
     this.baseLayer.bringToBack();
 
     this.currentStyleId = styleId;
@@ -140,7 +219,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     );
   }
 
-  /** Pen and Map Style icons*/
+  /** Pen and Map Style icons */
   private addToolsControl(): void {
     const tools = new L.Control({ position: 'topleft' });
 
@@ -149,15 +228,14 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       const bar = L.DomUtil.create('div', 'leaflet-bar', container);
 
       // Pen icon is not active now
-      this.createToolButton(bar, PEN_ICON, 'Draw a point', () => {
-      });
+      this.createToolButton(bar, PEN_ICON, 'Draw a point', () => {});
 
       // Map Style icon
       this.createToolButton(bar, LAYERS_ICON, 'Map style', () => {
         this.toggleStylePanel();
       });
 
-      // Map Style 
+      // Map Style
       this.stylePanel = this.createStylePanel(container);
 
       L.DomEvent.disableClickPropagation(container);
@@ -169,39 +247,38 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   }
 
   private createStylePanel(parent: HTMLElement): HTMLElement {
-  const panel = L.DomUtil.create('div', 'style-panel', parent);
-  panel.setAttribute('role', 'menu');
+    const panel = L.DomUtil.create('div', 'style-panel', parent);
+    panel.setAttribute('role', 'menu');
 
-  const title = L.DomUtil.create('div', 'style-panel-title', panel);
-  title.textContent = 'Map style';
+    const title = L.DomUtil.create('div', 'style-panel-title', panel);
+    title.textContent = 'Map style';
 
-  this.styleItems = MAP_STYLES.map((style) => {
-    const item = L.DomUtil.create('button', 'style-item', panel) as HTMLButtonElement;
-    item.type = 'button';
-    item.setAttribute('role', 'menuitemradio');
+    this.styleItems = MAP_STYLES.map((style) => {
+      const item = L.DomUtil.create('button', 'style-item', panel) as HTMLButtonElement;
+      item.type = 'button';
+      item.setAttribute('role', 'menuitemradio');
 
-    const label = L.DomUtil.create('span', 'style-label', item);
-    label.textContent = style.label;
+      const label = L.DomUtil.create('span', 'style-label', item);
+      label.textContent = style.label;
 
-    const check = L.DomUtil.create('span', 'style-check', item);
-    check.textContent = '✓';
+      const check = L.DomUtil.create('span', 'style-check', item);
+      check.textContent = '✓';
 
-    if (style.id === this.currentStyleId) {
-      item.classList.add('active');
-    }
+      if (style.id === this.currentStyleId) {
+        item.classList.add('active');
+      }
 
-    L.DomEvent.on(item, 'click', (e) => {
-      L.DomEvent.stop(e);
-      this.applyStyle(style.id);
-      this.toggleStylePanel(false);
+      L.DomEvent.on(item, 'click', (e) => {
+        L.DomEvent.stop(e);
+        this.applyStyle(style.id);
+        this.toggleStylePanel(false);
+      });
+
+      return { id: style.id, el: item };
     });
 
-    return { id: style.id, el: item };
-  });
-
-  return panel;
-}
-
+    return panel;
+  }
 
   private toggleStylePanel(force?: boolean): void {
     if (!this.stylePanel) return;
@@ -230,6 +307,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.gpxSubscription?.unsubscribe();
     this.map?.remove();
   }
 }

@@ -9,8 +9,41 @@
   </div>
 
   <div class="menu-items">
-    <button type="button" class="menu-btn">File</button>
+    <div class="menu-dropdown-container">
+      <button
+        type="button"
+        class="menu-btn"
+        [class.active]="isFileMenuOpen"
+        (click)="toggleFileMenu($event)"
+        aria-haspopup="true"
+        [attr.aria-expanded]="isFileMenuOpen">
+        File
+      </button>
+
+      @if (isFileMenuOpen) {
+        <div class="dropdown-menu" role="menu">
+          <button
+            type="button"
+            class="dropdown-item"
+            (click)="onAddClick()"
+            role="menuitem">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            <span>Add</span>
+          </button>
+        </div>
+      }
+    </div>
+
     <button type="button" class="menu-btn">Edit</button>
     <button type="button" class="menu-btn">Help</button>
   </div>
 </nav>
+
+<input
+  #fileInput
+  type="file"
+  accept=".gpx"
+  class="hidden-file-input"
+  (change)="onFileSelected($event)" />

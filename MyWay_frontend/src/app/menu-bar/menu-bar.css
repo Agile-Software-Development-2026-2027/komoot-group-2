@@ -8,7 +8,7 @@
   color: #fff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   position: relative;
-  z-index: 1000; 
+  z-index: 1000;
 }
 
 .brand {
@@ -26,6 +26,10 @@
   gap: 4px;
 }
 
+.menu-dropdown-container {
+  position: relative;
+}
+
 .menu-btn {
   background: transparent;
   border: none;
@@ -38,7 +42,50 @@
 }
 
 .menu-btn:hover,
-.menu-btn:focus-visible {
+.menu-btn:focus-visible,
+.menu-btn.active {
   background: rgba(255, 255, 255, 0.12);
   outline: none;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 140px;
+  background: #253352;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  z-index: 1100;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: #f0f4fc;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus-visible {
+  background: #3b82f6;
+  color: #ffffff;
+  outline: none;
+}
+
+.hidden-file-input {
+  display: none;
 }
