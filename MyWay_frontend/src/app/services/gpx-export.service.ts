@@ -14,6 +14,7 @@ export interface RouteData {
   waypoints?: TrackPoint[];
 }
 
+// Default route used when no custom track has been uploaded or drawn yet
 const DEFAULT_ROUTE: RouteData = {
   name: 'Rome Route',
   points: [
@@ -30,6 +31,7 @@ export class GpxExportService {
   readonly route = signal<RouteData>(DEFAULT_ROUTE);
   readonly hasRoute = computed(() => this.route().points.length > 0);
 
+  /** Replace the current route data */
   setRoute(route: RouteData): void {
     this.route.set({
       name: route.name?.trim() || 'MyWay Route',
@@ -38,6 +40,7 @@ export class GpxExportService {
     });
   }
 
+  /** Replace the current track points and route name */
   setPoints(points: TrackPoint[], name = 'MyWay Route'): void {
     this.route.set({
       name: name.trim() || 'MyWay Route',
@@ -45,6 +48,7 @@ export class GpxExportService {
     });
   }
 
+  /** Append a single track point to the current route */
   addPoint(point: TrackPoint): void {
     this.route.update((current) => ({
       ...current,
@@ -52,10 +56,12 @@ export class GpxExportService {
     }));
   }
 
+  /** Clear all points from the current route */
   clearRoute(): void {
     this.route.set({ name: 'MyWay Route', points: [] });
   }
 
+  /** Parse track, route, and waypoint data from a GPX XML string */
   loadFromGpxXml(xmlContent: string, fallbackName = 'Exported Route'): void {
     const parser = new DOMParser();
     const xml = parser.parseFromString(xmlContent, 'application/xml');
@@ -86,6 +92,7 @@ export class GpxExportService {
     }
   }
 
+  /** Generate a valid GPX 1.1 XML string containing the route track */
   generateGpx(routeData: RouteData = this.route()): string {
     const routeName = this.escapeXml(routeData.name?.trim() || 'MyWay Route');
     const lines: string[] = [
@@ -117,6 +124,7 @@ export class GpxExportService {
     return lines.join('\n');
   }
 
+  /** Trigger a browser download of the generated GPX file */
   downloadGpx(filename?: string, routeData: RouteData = this.route()): string {
     const gpxContent = this.generateGpx(routeData);
     const resolvedFilename = this.resolveFilename(filename ?? routeData.name);
