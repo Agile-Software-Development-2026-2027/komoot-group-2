@@ -1,5 +1,5 @@
-
 import { Component, ChangeDetectorRef, inject } from '@angular/core';
+import { GpxHandler } from '../../services/gpx-handler';
 
 @Component({
   selector: 'app-gpx-upload',
@@ -11,6 +11,7 @@ import { Component, ChangeDetectorRef, inject } from '@angular/core';
 export class GpxUploadComponent {
 
   private cdr = inject(ChangeDetectorRef);
+  private gpxHandler = inject(GpxHandler);
 
   isDragOver = false;
   errorMessage = '';
@@ -123,6 +124,7 @@ export class GpxUploadComponent {
         this.errorMessage = 'The selected GPX file does not contain a valid route.';
         return;
       }
+      await this.gpxHandler.loadGpxFile(file);
 
       this.successMessage =
         `File "${file.name}" selected and validated successfully.`;
