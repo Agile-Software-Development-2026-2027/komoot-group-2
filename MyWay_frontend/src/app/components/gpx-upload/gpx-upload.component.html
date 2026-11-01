@@ -1,0 +1,40 @@
+
+<div class="upload-container">
+  <h3>Carica la tua traccia GPX</h3>
+
+  <div
+    class="drop-zone"
+    [class.dragover]="isDragOver"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event)"
+    (click)="fileInput.click()">
+
+    <div class="drop-zone-content">
+      <p>
+        Trascina qui il tuo file <strong>.gpx</strong>
+        oppure clicca per selezionarlo
+      </p>
+    </div>
+
+    <input
+      type="file"
+      #fileInput
+      (change)="onFileSelected($event)"
+      accept=".gpx"
+      style="display: none;"
+    />
+  </div>
+
+  @if (errorMessage) {
+    <div class="feedback error-message">
+      {{ errorMessage }}
+    </div>
+  }
+
+  @if (successMessage) {
+    <div class="feedback success-message">
+      {{ successMessage }}
+    </div>
+  }
+</div>
