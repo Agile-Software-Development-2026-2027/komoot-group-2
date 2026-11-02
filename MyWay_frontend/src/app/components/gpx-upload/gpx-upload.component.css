@@ -1,0 +1,46 @@
+.upload-container {
+  padding: 20px;
+  font-family: 'Segoe UI', Roboto, sans-serif;
+}
+
+.drop-zone {
+  border: 2px dashed #3498db;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Dynamically activated class during Drag-and-Drop */
+.drop-zone.dragover {
+  background: #e2e6ea;
+  border-color: #2980b9;
+  transform: scale(1.02);
+}
+
+.drop-zone-content p {
+  margin: 0;
+  color: #555;
+  font-size: 16px;
+}
+
+.feedback {
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.error-message {
+  background-color: #fadbd8;
+  color: #78281f;
+  border: 1px solid #f5b7b1;
+}
+
+.success-message {
+  background-color: #d4efdf;
+  color: #145a32;
+  border: 1px solid #abebc6;
+}
