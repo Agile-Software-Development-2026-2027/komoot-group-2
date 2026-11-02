@@ -1,5 +1,6 @@
 import { Component, ChangeDetectorRef, inject } from '@angular/core';
 import { GpxHandler } from '../../services/gpx-handler';
+import { GpxExportService } from '../../services/gpx-export.service';
 
 @Component({
   selector: 'app-gpx-upload',
@@ -12,6 +13,7 @@ export class GpxUploadComponent {
 
   private cdr = inject(ChangeDetectorRef);
   private gpxHandler = inject(GpxHandler);
+  private gpxExportService = inject(GpxExportService);
 
   isDragOver = false;
   errorMessage = '';
@@ -76,13 +78,13 @@ export class GpxUploadComponent {
     this.errorMessage = '';
     this.successMessage = '';
 
-    // 1. Controllo estensione
+    // 1. Check file extension
     if (!file.name.toLowerCase().endsWith('.gpx')) {
       this.errorMessage = 'Invalid format. Please select a GPX file.';
       return;
     }
 
-    // 2. Controllo dimensione
+    // 2. Check file size
     if (file.size === 0) {
       this.errorMessage = 'The selected file is empty.';
       return;
@@ -93,7 +95,7 @@ export class GpxUploadComponent {
       return;
     }
 
-    // 3. Controllo contenuto XML e struttura GPX
+    // 3. Check XML content and GPX structure
     try {
       const content = await file.text();
 
@@ -114,7 +116,7 @@ export class GpxUploadComponent {
         return;
       }
 
-      // 4. Controllo presenza di almeno due punti di percorso
+      // 4. Check for at least two route points
       const points = xml.getElementsByTagNameNS('*', 'trkpt');
       const routePoints = xml.getElementsByTagNameNS('*', 'rtept');
 
@@ -125,6 +127,8 @@ export class GpxUploadComponent {
         return;
       }
       await this.gpxHandler.loadGpxFile(file);
+
+      this.gpxExportService.loadFromGpxXml(content, file.name.replace(/\.gpx$/i, ''));
 
       this.successMessage =
         `File "${file.name}" selected and validated successfully.`;
