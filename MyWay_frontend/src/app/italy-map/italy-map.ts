@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
 import * as L from 'leaflet';
 import { Subscription } from 'rxjs';
-import { GpxHandler } from '../services/gpx-handler';
+import { GpxHandler, GpxWaypoint, ParsedGpx } from '../services/gpx-handler';
 
 
 L.Marker.prototype.options.icon = L.icon({
@@ -89,6 +89,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private styleItems: { id: string; el: HTMLElement }[] = [];
   private stylePanel?: HTMLElement;
   private routeLayer?: L.Polyline; //manage gpx track
+  private waypointLayer?: L.LayerGroup; //manage gpx waypoints
   private routeSubscription?: Subscription;
 
   // Italy Border [N - S - E - W]
@@ -120,27 +121,76 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     L.marker([41.9028, 12.4964]).addTo(this.map).bindPopup('<b>روما</b><br>عاصمة إيطاليا');
     //visualize loaded gpx file
     this.routeSubscription = this.gpxHandler.currentGpx$.subscribe((parsedGpx) => {
-          if (parsedGpx && parsedGpx.allCoordinates.length > 0) {
-            this.renderTrack(parsedGpx.allCoordinates);
+          if (parsedGpx) {
+            this.renderGpx(parsedGpx);
           }
         });
     }
 
+  private renderGpx(parsedGpx: ParsedGpx): void {
+    if (!this.map) return;
+    this.renderTrack(parsedGpx.allCoordinates);
+    this.renderWaypoints(parsedGpx.waypoints);
+
+    // Fit the map on both the track and the waypoints
+    const bounds = L.latLngBounds([]);
+    if (this.routeLayer) {
+      bounds.extend(this.routeLayer.getBounds());
+    }
+    if (this.waypointLayer) {
+      this.waypointLayer.eachLayer((layer) => bounds.extend((layer as L.Marker).getLatLng()));
+    }
+    if (bounds.isValid()) {
+      this.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
+    }
+  }
+
   private renderTrack(coordinates: [number, number][]): void {
-    if (!this.map || coordinates.length === 0) return;
+    if (!this.map) return;
     if (this.routeLayer) {
       this.map.removeLayer(this.routeLayer);
+      this.routeLayer = undefined;
     }
+    if (coordinates.length === 0) return;
     this.routeLayer = L.polyline(coordinates, {
       color: '#e63946',
       weight: 5,
       opacity: 0.85,
     }).addTo(this.map);
     this.routeLayer.bringToFront();
-    const bounds = this.routeLayer.getBounds();
-    if (bounds.isValid()) {
-      this.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
+  }
+
+  private renderWaypoints(waypoints: GpxWaypoint[]): void {
+    if (!this.map) return;
+    if (this.waypointLayer) {
+      this.map.removeLayer(this.waypointLayer);
+      this.waypointLayer = undefined;
     }
+    if (waypoints.length === 0) return;
+    this.waypointLayer = L.layerGroup(
+      waypoints.map((wpt) => {
+        const marker = L.marker([wpt.lat, wpt.lon], { title: wpt.name ?? '' });
+        marker.bindPopup(this.buildWaypointPopup(wpt));
+        return marker;
+      }),
+    ).addTo(this.map);
+  }
+
+  /** Builds the popup content with textContent to avoid injecting HTML from the GPX file */
+  private buildWaypointPopup(wpt: GpxWaypoint): HTMLElement {
+    const container = document.createElement('div');
+    const title = document.createElement('b');
+    title.textContent = wpt.name ?? 'Waypoint';
+    container.appendChild(title);
+    if (wpt.desc) {
+      container.appendChild(document.createElement('br'));
+      container.appendChild(document.createTextNode(wpt.desc));
+    }
+    if (wpt.ele !== undefined) {
+      container.appendChild(document.createElement('br'));
+      container.appendChild(document.createTextNode(`Elevation: ${wpt.ele} m`));
+    }
+    return container;
   }
 
   /** Switch the style to the selected style */
