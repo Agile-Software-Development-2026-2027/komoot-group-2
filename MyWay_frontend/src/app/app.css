@@ -3,11 +3,142 @@
   flex-direction: column;
   height: 100vh;
   background: #eef1f6;
+  position: relative;
 }
 
 .content {
   flex: 1;
-  min-height: 0; 
+  min-height: 0;
   padding: 16px;
   box-sizing: border-box;
+}
+
+/* Toast Notifications */
+.notification-toast {
+  position: absolute;
+  top: 60px;
+  right: 24px;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideIn 0.25s ease-out;
+  max-width: 450px;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.toast-success .toast-icon {
+  color: #059669;
+}
+
+.toast-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.toast-error .toast-icon {
+  color: #dc2626;
+}
+
+.toast-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.toast-message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.toast-close {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 4px;
+  transition: opacity 0.15s;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+/* Drag and Drop Overlay */
+.drag-drop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  pointer-events: none;
+}
+
+.drop-zone-card {
+  background: #ffffff;
+  padding: 36px 48px;
+  border-radius: 16px;
+  border: 3px dashed #3b82f6;
+  text-align: center;
+  color: #1e293b;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.drop-zone-card svg {
+  color: #3b82f6;
+  animation: bounce 1s infinite alternate;
+}
+
+@keyframes bounce {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-8px);
+  }
+}
+
+.drop-zone-card h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.drop-zone-card p {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
 }
