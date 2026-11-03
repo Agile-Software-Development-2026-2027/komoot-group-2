@@ -1,5 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from '@angular/core';
 import * as L from 'leaflet';
+import { Subscription } from 'rxjs';
+import { GpxHandler } from '../services/gpx-handler';
 
 
 L.Marker.prototype.options.icon = L.icon({
@@ -86,9 +88,12 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private currentStyleId = 'standard';
   private styleItems: { id: string; el: HTMLElement }[] = [];
   private stylePanel?: HTMLElement;
+  private routeLayer?: L.Polyline; //manage gpx track
+  private routeSubscription?: Subscription;
 
   // Italy Border [N - S - E - W]
   private readonly italyBounds = L.latLngBounds([36.4, 6.7], [47.1, 18.6]);
+  constructor(private gpxHandler: GpxHandler){}
 
   ngAfterViewInit(): void {
     this.map = L.map(this.mapContainer.nativeElement, {
@@ -113,6 +118,29 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
     // Mark Roma
     L.marker([41.9028, 12.4964]).addTo(this.map).bindPopup('<b>روما</b><br>عاصمة إيطاليا');
+    //visualize loaded gpx file
+    this.routeSubscription = this.gpxHandler.currentGpx$.subscribe((parsedGpx) => {
+          if (parsedGpx && parsedGpx.allCoordinates.length > 0) {
+            this.renderTrack(parsedGpx.allCoordinates);
+          }
+        });
+    }
+
+  private renderTrack(coordinates: [number, number][]): void {
+    if (!this.map || coordinates.length === 0) return;
+    if (this.routeLayer) {
+      this.map.removeLayer(this.routeLayer);
+    }
+    this.routeLayer = L.polyline(coordinates, {
+      color: '#e63946',
+      weight: 5,
+      opacity: 0.85,
+    }).addTo(this.map);
+    this.routeLayer.bringToFront();
+    const bounds = this.routeLayer.getBounds();
+    if (bounds.isValid()) {
+      this.map.fitBounds(bounds, { padding: [30, 30], maxZoom: 16 });
+    }
   }
 
   /** Switch the style to the selected style */
@@ -133,6 +161,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
   
     this.baseLayer.bringToBack();
+
+    if (this.routeLayer) {
+      this.routeLayer.bringToFront();
+    }
 
     this.currentStyleId = styleId;
     this.styleItems.forEach((item) =>
@@ -230,6 +262,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.routeSubscription?.unsubscribe();
     this.map?.remove();
   }
 }

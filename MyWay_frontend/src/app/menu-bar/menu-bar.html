@@ -9,7 +9,37 @@
   </div>
 
   <div class="menu-items">
-    <button type="button" class="menu-btn">File</button>
+    <div class="menu-dropdown-container">
+      <button
+        type="button"
+        class="menu-btn"
+        [class.active]="isFileMenuOpen"
+        (click)="toggleFileMenu($event)"
+        aria-haspopup="true"
+        [attr.aria-expanded]="isFileMenuOpen">
+        File
+      </button>
+
+      @if (isFileMenuOpen) {
+        <div class="dropdown-menu" role="menu">
+          <button
+            type="button"
+            class="dropdown-item"
+            [disabled]="!hasRoute()"
+            (click)="onExportClick()"
+            role="menuitem">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Export GPX</span>
+          </button>
+        </div>
+      }
+    </div>
+
     <button type="button" class="menu-btn">Edit</button>
     <button type="button" class="menu-btn">Help</button>
   </div>

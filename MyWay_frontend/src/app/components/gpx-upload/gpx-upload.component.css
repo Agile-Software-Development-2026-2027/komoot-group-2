@@ -13,7 +13,7 @@
   transition: all 0.2s ease-in-out;
 }
 
-/* Classe attivata dinamicamente durante il Drag-and-Drop */
+/* Dynamically activated class during Drag-and-Drop */
 .drop-zone.dragover {
   background: #e2e6ea;
   border-color: #2980b9;
