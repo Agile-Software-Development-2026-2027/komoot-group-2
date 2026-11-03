@@ -1,5 +1,6 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { GpxExportService } from './gpx-export.service';
 
 export interface GpxWaypoint {
   lat: number;
@@ -33,7 +34,11 @@ export interface GpxNotification {
 @Injectable({
   providedIn: 'root',
 })
-export class GpxHandler {
+export class GpxService {
+    private readonly gpxExportService = inject(GpxExportService);
+
+  private readonly MAX_FILE_SIZE = 10 * 1024 * 1024;
+
   private readonly currentGpxSubject = new BehaviorSubject<ParsedGpx | null>(null);
   public readonly currentGpx$: Observable<ParsedGpx | null> = this.currentGpxSubject.asObservable();
 
@@ -49,7 +54,9 @@ export class GpxHandler {
    */
   public async loadGpxFile(file: File): Promise<ParsedGpx> {
     try {
-      const parsed = await this.parseAndValidate(file);
+      const { parsed, xmlText } = await this.readAndParse(file);
+      this.gpxExportService.loadFromGpxXml(xmlText, file.name.replace(/\.gpx$/i, ''));
+
       this.currentGpxSubject.next(parsed);
       this.showNotification({
         type: 'success',
@@ -70,7 +77,10 @@ export class GpxHandler {
    * Parses and validates file contents.
    */
   public async parseAndValidate(file: File): Promise<ParsedGpx> {
-    // 1. Validate file existence and extension
+    const { parsed } = await this.readAndParse(file);
+    return parsed;
+  }
+  private async readAndParse(file: File): Promise<{ parsed: ParsedGpx; xmlText: string }> {
     if (!file) {
       throw new Error('No file selected');
     }
@@ -83,11 +93,13 @@ export class GpxHandler {
       throw new Error('The .gpx selected is empty.');
     }
 
-    // 2. Read content as text
-    const text = await this.readFileAsText(file);
+    if (file.size > this.MAX_FILE_SIZE) {
+      throw new Error('The file is too large. The maximum allowed size is 10 MB.');
+    }
 
-    // 3. Parse XML content
-    return this.parseGpxString(text, file.name);
+    const xmlText = await this.readFileAsText(file);
+    const parsed = this.parseGpxString(xmlText, file.name);
+    return { parsed, xmlText };
   }
 
   /**

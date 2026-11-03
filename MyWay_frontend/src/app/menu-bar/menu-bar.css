@@ -52,7 +52,7 @@
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  min-width: 150px;
+  min-width: 140px;
   background: #253352;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
@@ -79,14 +79,13 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.dropdown-item:hover:not(:disabled),
-.dropdown-item:focus-visible:not(:disabled) {
+.dropdown-item:hover,
+.dropdown-item:focus-visible {
   background: #3b82f6;
   color: #ffffff;
   outline: none;
 }
 
-.dropdown-item:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.hidden-file-input {
+  display: none;
 }

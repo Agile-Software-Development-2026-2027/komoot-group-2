@@ -1,5 +1,6 @@
-import { Component, ElementRef, HostListener, inject } from '@angular/core';
+import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
 import { GpxExportService } from '../services/gpx-export.service';
+import { GpxService } from '../services/gpx.service';
 
 @Component({
   selector: 'app-menu-bar',
@@ -8,6 +9,9 @@ import { GpxExportService } from '../services/gpx-export.service';
   styleUrl: './menu-bar.css',
 })
 export class MenuBar {
+  @ViewChild('fileInput') private fileInput?: ElementRef<HTMLInputElement>;
+
+  private readonly gpxService = inject(GpxService);
   private readonly gpxExportService = inject(GpxExportService);
   private readonly elementRef = inject(ElementRef);
 
@@ -23,6 +27,25 @@ export class MenuBar {
   /** Close the File dropdown menu */
   public closeFileMenu(): void {
     this.isFileMenuOpen = false;
+  }
+
+  /** Open the file picker to add a GPX file and close the menu */
+  public onAddClick(): void {
+    this.closeFileMenu();
+    this.fileInput?.nativeElement.click();
+  }
+
+  /** Handle the GPX file chosen by the user */
+  public onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) {
+      this.gpxService.loadGpxFile(file).catch(() => {
+        // Notification is handled inside GpxService
+      });
+      // Reset value so re-uploading the same file triggers change
+      input.value = '';
+    }
   }
 
   /** Export the current route as a GPX file and close the menu */
