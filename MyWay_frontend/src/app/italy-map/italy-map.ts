@@ -2,6 +2,7 @@ import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, inject } fr
 import { Subscription } from 'rxjs';
 import * as L from 'leaflet';
 import { GpxService, ParsedGpx } from '../services/gpx.service';
+import { TrackStyleHandler } from '../services/track-style-handler.service';
 
 L.Marker.prototype.options.icon = L.icon({
   iconUrl: 'leaflet/marker-icon.png',
@@ -81,6 +82,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   mapContainer!: ElementRef<HTMLDivElement>;
 
   private readonly gpxService = inject(GpxService);
+  private readonly trackStyleHandler= inject(TrackStyleHandler);
 
   private map?: L.Map;
   private baseLayer?: L.TileLayer;
@@ -92,6 +94,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
   private gpxLayerGroup?: L.FeatureGroup;
   private gpxSubscription?: Subscription;
+  private styleSubscription?: Subscription;
 
   // Italy Border [N - S - E - W]
   private readonly italyBounds = L.latLngBounds([36.4, 6.7], [47.1, 18.6]);
@@ -126,6 +129,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         this.renderGpx(gpx);
       }
     });
+        // Update the GPX track when the user changes color or thickness
+    this.styleSubscription = this.trackStyleHandler.style$.subscribe((style) => {
+      this.gpxLayerGroup?.setStyle({ color: style.color, weight: style.weight });
+    });
   }
 
   /**
@@ -141,12 +148,13 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     }
 
     // 1. Draw tracks and routes
+    const{color,weight}=this.trackStyleHandler.getCurrentStyle();
     for (const track of data.tracks) {
       for (const seg of track.segments) {
         if (seg.points.length > 0) {
           const polyline = L.polyline(seg.points, {
-            color: '#0284c7',
-            weight: 5,
+            color: color,
+            weight: weight,
             opacity: 0.85,
             lineJoin: 'round',
           });
@@ -314,6 +322,8 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.gpxSubscription?.unsubscribe();
+    this.styleSubscription?.unsubscribe();
     this.map?.remove();
   }
+
 }
