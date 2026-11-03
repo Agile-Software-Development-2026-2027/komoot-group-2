@@ -87,12 +87,15 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private currentStyleId = 'standard';
   private styleItems: { id: string; el: HTMLElement }[] = [];
   private stylePanel?: HTMLElement;
+  private routeLayer?: L.Polyline; //manage gpx track
+  private routeSubscription?: Subscription;
 
   private gpxLayerGroup?: L.FeatureGroup;
   private gpxSubscription?: Subscription;
 
   // Italy Border [N - S - E - W]
   private readonly italyBounds = L.latLngBounds([36.4, 6.7], [47.1, 18.6]);
+  constructor(private gpxHandler: GpxHandler){}
 
   ngAfterViewInit(): void {
     this.map = L.map(this.mapContainer.nativeElement, {
@@ -212,6 +215,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     }).addTo(this.map);
 
     this.baseLayer.bringToBack();
+
+    if (this.routeLayer) {
+      this.routeLayer.bringToFront();
+    }
 
     this.currentStyleId = styleId;
     this.styleItems.forEach((item) =>
