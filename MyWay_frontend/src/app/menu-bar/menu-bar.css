@@ -89,3 +89,53 @@
 .hidden-file-input {
   display: none;
 }
+/*Track design submenu*/
+/* Track design submenu */
+.submenu-container {
+  position: relative;
+}
+
+.submenu {
+  top: 0;
+  left: calc(100% + 4px);
+  min-width: 190px;
+}
+.arrow {
+  margin-left: auto;
+}
+.submenu .dropdown-item {
+  box-sizing: border-box;
+}
+
+.color-input {
+  margin-left: auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+.submenu-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #f0f4fc;
+}
+
+.weight-input {
+  width: 130px;
+  cursor: pointer;
+}
