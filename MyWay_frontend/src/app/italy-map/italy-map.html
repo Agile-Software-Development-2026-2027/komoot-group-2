@@ -1,2 +1,16 @@
 <!-- <p>italy-map works!</p> -->
  <div #mapContainer class="map-container"></div>
+
+@if (planningMode() || routePlanner.route()) {
+  <div class="route-panel" role="status" aria-live="polite">
+    <span class="route-panel-text">{{ routeHint() }}</span>
+    @if (routePlanner.route()) {
+      <button type="button" class="route-panel-btn primary" (click)="routePlanner.exportGpx()">
+        Export GPX
+      </button>
+    }
+    @if (routePlanner.start()) {
+      <button type="button" class="route-panel-btn" (click)="routePlanner.clear()">Clear</button>
+    }
+  </div>
+}

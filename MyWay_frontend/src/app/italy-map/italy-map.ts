@@ -1,8 +1,20 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild, inject } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  Injector,
+  OnDestroy,
+  ViewChild,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { Subscription } from 'rxjs';
 import * as L from 'leaflet';
 import { GpxService, ParsedGpx } from '../services/gpx.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
+import { LatLon, PlannedRoute, RoutePlannerService } from '../services/route-planner.service';
 
 L.Marker.prototype.options.icon = L.icon({
   iconUrl: 'leaflet/marker-icon.png',
@@ -28,6 +40,36 @@ const LAYERS_ICON = `
   <path d="m2 12 10 5 10-5" />
   <path d="m2 17 10 5 10-5" />
 </svg>`;
+
+const START_ICON = L.divIcon({
+  className: 'route-marker route-marker-start',
+  html: 'A',
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+});
+
+const END_ICON = L.divIcon({
+  className: 'route-marker route-marker-end',
+  html: 'B',
+  iconSize: [26, 26],
+  iconAnchor: [13, 13],
+});
+
+// Required by the routing server usage policy (https://routing.openstreetmap.de/about.html)
+const ROUTING_ATTRIBUTION =
+  'Routing &copy; <a href="https://routing.openstreetmap.de/about.html">FOSSGIS OSRM</a>, ' +
+  '<a href="https://www.openstreetmap.org/fixthemap">Fix the map</a>';
+
+function formatDistance(meters: number): string {
+  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
+}
+
+function formatDuration(seconds: number): string {
+  const totalMinutes = Math.max(1, Math.round(seconds / 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
+}
 
 interface MapStyle {
   id: string;
@@ -83,13 +125,29 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
   private readonly gpxService = inject(GpxService);
   private readonly trackStyleHandler= inject(TrackStyleHandler);
+  private readonly injector = inject(Injector);
+  protected readonly routePlanner = inject(RoutePlannerService);
+
+  /** When active, clicks on the map set the start and destination of a route */
+  public readonly planningMode = signal(false);
+
+  protected readonly routeHint = computed(() => {
+    const route = this.routePlanner.route();
+    if (this.routePlanner.loading()) return 'Calculating route…';
+    if (route) return `${formatDistance(route.distanceMeters)} · ${formatDuration(route.durationSeconds)}`;
+    if (!this.routePlanner.start()) return 'Click on the map to set the starting point';
+    if (!this.routePlanner.end()) return 'Click on the map to set the destination';
+    return 'Click on the map to start a new route';
+  });
 
   private map?: L.Map;
   private baseLayer?: L.TileLayer;
   private currentStyleId = 'standard';
   private styleItems: { id: string; el: HTMLElement }[] = [];
   private stylePanel?: HTMLElement;
-  private routeLayer?: L.Polyline; //manage gpx track
+  private planButton?: HTMLAnchorElement;
+  private plannedRouteGroup?: L.FeatureGroup; // start/end markers and planned route
+  private routeLayer?: L.Polyline; // planned route line
   private routeSubscription?: Subscription;
 
   private gpxLayerGroup?: L.FeatureGroup;
@@ -117,11 +175,28 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
     this.addToolsControl();
 
-    // When click on the map the Map Style list will close
-    this.map.on('click', () => this.toggleStylePanel(false));
+    // When click on the map the Map Style list will close; in planning mode it sets a route point
+    this.map.on('click', (e: L.LeafletMouseEvent) => {
+      this.toggleStylePanel(false);
+      if (this.planningMode()) {
+        this.routePlanner.selectPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
+      }
+    });
 
     // Mark Roma
     L.marker([41.9028, 12.4964]).addTo(this.map).bindPopup('Roma');
+
+    // Redraw the start/end markers and the planned route whenever they change
+    this.plannedRouteGroup = L.featureGroup().addTo(this.map);
+    effect(
+      () =>
+        this.renderPlannedRoute(
+          this.routePlanner.start(),
+          this.routePlanner.end(),
+          this.routePlanner.route(),
+        ),
+      { injector: this.injector },
+    );
 
     // Subscribe to loaded GPX
     this.gpxSubscription = this.gpxService.currentGpx$.subscribe((gpx) => {
@@ -132,7 +207,39 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         // Update the GPX track when the user changes color or thickness
     this.styleSubscription = this.trackStyleHandler.style$.subscribe((style) => {
       this.gpxLayerGroup?.setStyle({ color: style.color, weight: style.weight });
+      this.routeLayer?.setStyle({ color: style.color, weight: style.weight });
     });
+  }
+
+  /** Turns route planning on/off; the planned route stays on the map when turned off */
+  public togglePlanningMode(): void {
+    const enabled = !this.planningMode();
+    this.planningMode.set(enabled);
+    this.planButton?.classList.toggle('active', enabled);
+    this.mapContainer.nativeElement.classList.toggle('planning-mode', enabled);
+  }
+
+  private renderPlannedRoute(start: LatLon | null, end: LatLon | null, route: PlannedRoute | null): void {
+    if (!this.map || !this.plannedRouteGroup) return;
+
+    this.plannedRouteGroup.clearLayers();
+    this.routeLayer = undefined;
+    this.map.attributionControl.removeAttribution(ROUTING_ATTRIBUTION);
+
+    if (route) {
+      const { color, weight } = this.trackStyleHandler.getCurrentStyle();
+      this.routeLayer = L.polyline(
+        route.points.map((p): L.LatLngTuple => [p.lat, p.lon]),
+        { color, weight, opacity: 0.85, lineJoin: 'round', interactive: false },
+      ).addTo(this.plannedRouteGroup);
+      this.map.attributionControl.addAttribution(ROUTING_ATTRIBUTION);
+    }
+    if (start) {
+      L.marker([start.lat, start.lon], { icon: START_ICON, title: 'Start' }).addTo(this.plannedRouteGroup);
+    }
+    if (end) {
+      L.marker([end.lat, end.lon], { icon: END_ICON, title: 'Destination' }).addTo(this.plannedRouteGroup);
+    }
   }
 
   /**
@@ -241,8 +348,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       const container = L.DomUtil.create('div', 'map-tools');
       const bar = L.DomUtil.create('div', 'leaflet-bar', container);
 
-      // Pen icon is not active now
-      this.createToolButton(bar, PEN_ICON, 'Draw a point', () => {});
+      // Pen icon: plan a route by clicking a start and a destination
+      this.planButton = this.createToolButton(bar, PEN_ICON, 'Plan a route', () => {
+        this.togglePlanningMode();
+      });
 
       // Map Style icon
       this.createToolButton(bar, LAYERS_ICON, 'Map style', () => {
