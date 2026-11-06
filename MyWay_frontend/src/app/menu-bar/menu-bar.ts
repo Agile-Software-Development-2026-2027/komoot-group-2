@@ -17,17 +17,19 @@ export class MenuBar {
   private readonly trackStyleHandler= inject(TrackStyleHandler);
 
   public isFileMenuOpen = false;
-  public isEditMenuOpen= false;
-  public isTrackDesignOpen=false;
+  public isEditMenuOpen = false;
+  public isTrackDesignOpen = false;
+  public isLoginOpen = false;
   readonly hasRoute = this.gpxExportService.hasRoute;
 
-  public color= this.trackStyleHandler.getCurrentStyle().color;
-  public weight= this.trackStyleHandler.getCurrentStyle().weight;
+  public color = this.trackStyleHandler.getCurrentStyle().color;
+  public weight = this.trackStyleHandler.getCurrentStyle().weight;
 
   /** Toggle the File dropdown menu */
   public toggleFileMenu(event: MouseEvent): void {
     event.stopPropagation();
-    this.isEditMenuOpen=false;
+    this.isLoginOpen = false;
+    this.isEditMenuOpen = false;
     this.isFileMenuOpen = !this.isFileMenuOpen;
   }
 
@@ -36,20 +38,35 @@ export class MenuBar {
     this.isFileMenuOpen = false;
   }
   // Toggle the Edit dropdown menu
-  public toggleEditMenu(event:MouseEvent):void{
+  public toggleEditMenu(event: MouseEvent): void {
     event.stopPropagation();
-    this.isFileMenuOpen=false;
-    this.isTrackDesignOpen=false;
-    this.isEditMenuOpen=!this.isEditMenuOpen;
+    this.isLoginOpen = false;
+    this.isFileMenuOpen = false;
+    this.isTrackDesignOpen = false;
+    this.isEditMenuOpen = !this.isEditMenuOpen;
   }
   //Close the Edit dropdown menu
-  public closeEditMenu(): void{
-    this.isEditMenuOpen= false;
-    this.isTrackDesignOpen=false;
+  public closeEditMenu(): void {
+    this.isEditMenuOpen = false;
+    this.isTrackDesignOpen = false;
   }
   //Opne-close the Track submenu
-  public toggleTrackDesign(): void{
-    this.isTrackDesignOpen= !this.isTrackDesignOpen;
+  public toggleTrackDesign(): void {
+    this.isTrackDesignOpen = !this.isTrackDesignOpen;
+  }
+
+  /** Toggle the user login popup */
+  public toggleLoginPopup(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isFileMenuOpen = false;
+    this.isEditMenuOpen = false;
+    this.isTrackDesignOpen = false;
+    this.isLoginOpen = !this.isLoginOpen;
+  }
+
+  /** Close the user login popup */
+  public closeLoginPopup(): void {
+    this.isLoginOpen = false;
   }
 
   /** Open the file picker to add a GPX file and close the menu */
@@ -87,19 +104,21 @@ export class MenuBar {
     this.trackStyleHandler.setWeight(this.weight);
   }
 
-  /** Close the File dropdown menu when clicking outside the component */
+  /** Close menus and popups when clicking outside the component */
   @HostListener('document:click', ['$event'])
   public onDocumentClick(event: MouseEvent): void {
     if (!this.elementRef.nativeElement.contains(event.target as Node)) {
       this.closeFileMenu();
       this.closeEditMenu();
+      this.closeLoginPopup();
     }
   }
 
-  /** Close the File dropdown menu when pressing Escape */
+  /** Close menus and popups when pressing Escape */
   @HostListener('document:keydown.escape')
   public onEscape(): void {
     this.closeFileMenu();
     this.closeEditMenu();
+    this.closeLoginPopup();
   }
 }
