@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+// this is just the evolution of the older "interceptor"
 @Component
 @RequiredArgsConstructor
 public class JWTFilter extends OncePerRequestFilter {
@@ -26,6 +27,8 @@ public class JWTFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
+
+            // 7 is just the length of "Bearer "
             jwtService.extractEmail(authHeader.substring(7)).ifPresent(email -> {
                 var auth = new UsernamePasswordAuthenticationToken(email, null, List.of());
                 SecurityContextHolder.getContext().setAuthentication(auth);
