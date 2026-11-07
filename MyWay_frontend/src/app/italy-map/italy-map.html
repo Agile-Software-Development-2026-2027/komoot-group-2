@@ -81,7 +81,7 @@
 
     <!-- custom button (SCRUM-53) -->
     <div class="sidebar-actions">
-      <button type="button" class="btn-customize-waypoint">
+      <button type="button" class="btn-customize-waypoint" (click)="openEditModal()">
         Custom Waypoint
       </button>
     </div>
@@ -97,6 +97,69 @@
         &times;
       </button>
       <img [src]="photoUrl" alt="Anteprima ingrandita" class="photo-lightbox-img" />
+    </div>
+  </div>
+}
+<!-- POP-UP waypoint adding info -->
+@if (isEditingWaypoint()) {
+  <div class="edit-modal-backdrop" (click)="closeEditModal()">
+    <div class="edit-modal-card" (click)="$event.stopPropagation()">
+      <div class="edit-modal-header">
+        <h3>Custom Waypoint</h3>
+        <button type="button" class="btn-close-modal" (click)="closeEditModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="edit-modal-body">
+        <div class="edit-group">
+          <label class="edit-label">Categories (choose one or more):</label>
+          <div class="category-select-grid">
+            @for (cat of availableCategories; track cat) {
+              <button
+                type="button"
+                class="category-select-chip"
+                [class.selected]="editCategories().includes(cat)"
+                (click)="toggleCategory(cat)">
+                {{ cat }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="edit-group">
+          <label class="edit-label" for="wp-desc-input">Description:</label>
+          <textarea
+            id="wp-desc-input"
+            class="edit-textarea"
+            rows="3"
+            placeholder="Add info for this waypoint..."
+            [value]="editDesc()"
+            (input)="onDescInput($event)"></textarea>
+        </div>
+
+        <div class="edit-group">
+          <label class="edit-label">Photo:</label>
+          <label class="btn-upload-file">
+            Upload images
+            <input type="file" accept="image/*" multiple (change)="onPhotosSelected($event)" hidden />
+          </label>
+
+          @if (editPhotos().length > 0) {
+            <div class="edit-photos-preview">
+              @for (photo of editPhotos(); track $index) {
+                <div class="photo-preview-item">
+                  <img [src]="photo" alt="Preview" />
+                  <button type="button" class="btn-remove-photo" (click)="removePhoto($index)" title="Remove">&times;</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="edit-modal-footer">
+        <button type="button" class="btn-modal-cancel" (click)="closeEditModal()">Cancel</button>
+        <button type="button" class="btn-modal-save" (click)="saveWaypointChanges()">Save</button>
+      </div>
     </div>
   </div>
 }
