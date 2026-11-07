@@ -179,7 +179,7 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 250px;
+  width: 280px;
   background: #253352;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
@@ -269,4 +269,35 @@
 .forgot-password:hover {
   color: #e0e7ff;
   text-decoration: underline;
+}
+
+.password-criteria {
+  list-style: none;
+  padding: 0;
+  margin: 2px 0 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.criterion-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #cfd8dc;
+}
+
+.criterion-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.criterion-dot.valid {
+  background-color: #22c55e;
+  box-shadow: 0 0 4px rgba(34, 197, 94, 0.5);
 }
