@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import * as L from 'leaflet';
-import { GpxService, ParsedGpx } from '../services/gpx.service';
+import { GpxService, ParsedGpx, GpxWaypoint, WaypointCategory } from '../services/gpx.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from '../services/route-planner.service';
 
@@ -59,6 +59,54 @@ const END_ICON = L.divIcon({
 const ROUTING_ATTRIBUTION =
   'Routing &copy; <a href="https://routing.openstreetmap.de/about.html">FOSSGIS OSRM</a>, ' +
   '<a href="https://www.openstreetmap.org/fixthemap">Fix the map</a>';
+
+const CATEGORY_STYLES: Record<WaypointCategory, { svg: string; bgGradient: string; label: string }> = {
+  'fountain': {
+      label: 'Fountain',
+      bgGradient: 'linear-gradient(135deg, #38bdf8, #0284c7)',//color:blue
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
+    },
+    'shelter': {
+      label: 'Shelter',
+      bgGradient: 'linear-gradient(135deg, #f59e0b, #d97706)',//color: amber
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    },
+    'panoramic view': {
+      label: 'Panoramic view',
+      bgGradient: 'linear-gradient(135deg, #a855f7, #7c3aed)',//color: purple
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/></svg>`,
+    },
+    'sanctuary': {
+      label: 'Sanctuary',
+      bgGradient: 'linear-gradient(135deg, #eab308, #ca8a04)', //color: yellow
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 22V8a2 2 0 0 0-2-2h-3V2h-2v4H8a2 2 0 0 0-2 2v14"/><path d="M4 22h16"/><path d="M10 14h4v8h-4z"/></svg>`,
+    },
+    'peak': {
+      label: 'Peak',
+      bgGradient: 'linear-gradient(135deg, #f87171, #dc2626)', //color: red
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 20 7-14 4 6 3-3 6 11H2z"/></svg>`,
+    },
+};
+
+const DEFAULT_STYLE = {
+  label: 'Waypoint',
+  bgGradient: 'linear-gradient(135deg, #64748b, #334155)', //color: grey
+  svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/></svg>`,
+};
+function createWaypointIcon(wp: GpxWaypoint): L.DivIcon {
+  const primaryCat = wp.categories && wp.categories.length > 0 ? wp.categories[0] : null;
+  const style = primaryCat ? CATEGORY_STYLES[primaryCat] : DEFAULT_STYLE;
+  return L.divIcon({
+    className: 'custom-wp-pin',
+    html: `
+      <div class="komoot-pin" style="background: ${style.bgGradient};" title="${wp.name || style.label}">
+        <span class="komoot-pin-svg">${style.svg}</span>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
 
 function formatDistance(meters: number): string {
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
@@ -178,6 +226,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     // When click on the map the Map Style list will close; in planning mode it sets a route point
     this.map.on('click', (e: L.LeafletMouseEvent) => {
       this.toggleStylePanel(false);
+      this.closeWaypointDetails();
       if (this.planningMode()) {
         this.routePlanner.selectPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
       }
@@ -275,25 +324,11 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
     // 2. Draw waypoints
     for (const wp of data.waypoints) {
-      const marker = L.marker([wp.lat, wp.lon]);
-      let popupContent = '<div class="waypoint-popup" style="font-family: inherit;">';
-      if (wp.name) {
-        popupContent += `<strong style="font-size: 14px;">${this.escapeHtml(wp.name)}</strong>`;
-      } else {
-        popupContent += `<strong style="font-size: 14px;">Waypoint</strong>`;
-      }
-      if (wp.desc) {
-        popupContent += `<div style="font-size: 12px; margin-top: 4px; color: #4b5563;">${this.escapeHtml(wp.desc)}</div>`;
-      }
-      if (wp.ele !== undefined && !isNaN(wp.ele)) {
-        popupContent += `<div style="font-size: 12px; margin-top: 4px; color: #1e293b;"><b>Altitude:</b> ${wp.ele} m</div>`;
-      }
-      const latDir = wp.lat >= 0 ? 'N' : 'S';
-      const lonDir = wp.lon >= 0 ? 'E' : 'W';
-      popupContent += `<div style="font-size: 11px; margin-top: 4px; color: #64748b;">${Math.abs(wp.lat).toFixed(5)}° ${latDir}, ${Math.abs(wp.lon).toFixed(5)}° ${lonDir}</div>`;
-      popupContent += '</div>';
-
-      marker.bindPopup(popupContent);
+      const marker = L.marker([wp.lat, wp.lon], {icon: createWaypointIcon(wp)});
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        this.openWaypointDetails(wp);
+      });
       marker.addTo(this.gpxLayerGroup);
     }
 
@@ -304,6 +339,22 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       this.map.setMaxBounds(undefined);
       this.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
     }
+  }
+
+  public selectedWaypoint = signal<GpxWaypoint | null>(null);
+  public openWaypointDetails(wp: GpxWaypoint): void {
+    this.selectedWaypoint.set(wp);
+  }
+  public closeWaypointDetails(): void {
+    this.selectedWaypoint.set(null);
+  }
+
+  public previewPhotoUrl = signal<string | null>(null);
+  public openPhotoPreview(url: string): void {
+    this.previewPhotoUrl.set(url);
+  }
+  public closePhotoPreview(): void {
+    this.previewPhotoUrl.set(null);
   }
 
   private escapeHtml(text: string): string {

@@ -2,12 +2,16 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { GpxExportService } from './gpx-export.service';
 
+export type WaypointCategory = 'fountain' | 'shelter' | 'panoramic view' | 'sanctuary' | 'peak';
+
 export interface GpxWaypoint {
   lat: number;
   lon: number;
   name?: string;
   desc?: string;
   ele?: number;
+  categories?: WaypointCategory[];
+  photos?: string[];
 }
 
 export interface GpxTrackSegment {
@@ -188,6 +192,13 @@ export class GpxService {
   private extractWaypoints(doc: Document): GpxWaypoint[] {
     const wptElements = this.getElementsByTag(doc, 'wpt');
     const waypoints: GpxWaypoint[] = [];
+    const validCategories = new Set<string>([
+          'fountain',
+          'shelter',
+          'panoramic view',
+          'sanctuary',
+          'peak',
+    ]);
 
     for (const el of wptElements) {
       const latStr = el.getAttribute('lat');
@@ -212,12 +223,41 @@ export class GpxService {
         }
       }
 
+      const categories: WaypointCategory[] = [];
+      const categoryNodes = [
+        ...this.getElementsByTag(el, 'type'),
+        ...this.getElementsByTag(el, 'category'),
+      ];
+      for (const catEl of categoryNodes) {
+        const val = catEl.textContent?.trim().toLowerCase();
+        if (val && validCategories.has(val) && !categories.includes(val as WaypointCategory)) {
+          categories.push(val as WaypointCategory);
+        }
+      }
+      const photos: string[] = [];
+      const linkNodes = this.getElementsByTag(el, 'link');
+      for (const linkEl of linkNodes) {
+        const href = linkEl.getAttribute('href')?.trim();
+        if (href && !photos.includes(href)) {
+          photos.push(href);
+        }
+      }
+      const photoNodes = this.getElementsByTag(el, 'photo');
+      for (const photoEl of photoNodes) {
+        const src = photoEl.textContent?.trim();
+        if (src && !photos.includes(src)) {
+          photos.push(src);
+        }
+      }
+
       waypoints.push({
         lat,
         lon,
         name,
         desc,
         ele,
+        categories: categories.length > 0 ? categories : undefined,
+        photos: photos.length > 0 ? photos : undefined,
       });
     }
 
