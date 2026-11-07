@@ -109,6 +109,51 @@
 
     <button type="button" class="menu-btn">Help</button>
   </div>
+
+  <div class="user-container">
+    <button
+      type="button"
+      class="user-btn"
+      [class.active]="isLoginOpen"
+      (click)="toggleLoginPopup($event)"
+      aria-haspopup="dialog"
+      [attr.aria-expanded]="isLoginOpen"
+      aria-label="Log in">
+      <img src="user.png" alt="User" class="user-icon" />
+    </button>
+
+    @if (isLoginOpen) {
+      <div
+        class="login-popup"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="login-title"
+        (click)="$event.stopPropagation()">
+        <h3 id="login-title" class="login-title">Log in</h3>
+        <form class="login-form" (submit)="$event.preventDefault()">
+          <div class="form-group">
+            <label for="login-email">Email</label>
+            <input
+              id="login-email"
+              type="email"
+              autocomplete="email" />
+          </div>
+
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input
+              id="login-password"
+              type="password"
+              autocomplete="current-password" />
+          </div>
+
+          <button type="submit" class="login-submit-btn">Log in</button>
+
+          <a href="#" class="forgot-password" (click)="$event.preventDefault()">Forgot password?</a>
+        </form>
+      </div>
+    }
+  </div>
 </nav>
 
 <input
