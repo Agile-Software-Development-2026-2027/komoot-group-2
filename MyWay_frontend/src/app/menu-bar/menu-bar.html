@@ -114,10 +114,10 @@
     <button
       type="button"
       class="user-btn"
-      [class.active]="isLoginOpen"
+      [class.active]="isLoginOpen || isSignInOpen"
       (click)="toggleLoginPopup($event)"
       aria-haspopup="dialog"
-      [attr.aria-expanded]="isLoginOpen"
+      [attr.aria-expanded]="isLoginOpen || isSignInOpen"
       aria-label="Log in">
       <img src="user.png" alt="User" class="user-icon" />
     </button>
@@ -150,6 +150,68 @@
           <button type="submit" class="login-submit-btn">Log in</button>
 
           <a href="#" class="forgot-password" (click)="$event.preventDefault()">Forgot password?</a>
+          <a href="#" class="forgot-password" (click)="openSignIn($event)">Sign in</a>
+        </form>
+      </div>
+    }
+
+    @if (isSignInOpen) {
+      <div
+        class="login-popup"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="signin-title"
+        (click)="$event.stopPropagation()">
+        <h3 id="signin-title" class="login-title">Sign in</h3>
+        <form class="login-form" (submit)="$event.preventDefault()">
+          <div class="form-group">
+            <label for="signin-email">Email</label>
+            <input
+              id="signin-email"
+              type="email"
+              autocomplete="email" />
+          </div>
+
+          <div class="form-group">
+            <label for="signin-username">Username</label>
+            <input
+              id="signin-username"
+              type="text"
+              autocomplete="username" />
+          </div>
+
+          <div class="form-group">
+            <label for="signin-password">Password</label>
+            <input
+              id="signin-password"
+              type="password"
+              autocomplete="new-password"
+              [value]="registerPassword"
+              (input)="onPasswordInput($event)" />
+          </div>
+
+          <ul class="password-criteria" aria-label="Password criteria">
+            <li class="criterion-item">
+              <span class="criterion-dot" [class.valid]="hasMinLength" aria-hidden="true"></span>
+              <span class="criterion-text">At least 6 characters</span>
+            </li>
+            <li class="criterion-item">
+              <span class="criterion-dot" [class.valid]="hasUppercase" aria-hidden="true"></span>
+              <span class="criterion-text">At least one uppercase letter</span>
+            </li>
+            <li class="criterion-item">
+              <span class="criterion-dot" [class.valid]="hasLowercase" aria-hidden="true"></span>
+              <span class="criterion-text">At least one lowercase letter</span>
+            </li>
+            <li class="criterion-item">
+              <span class="criterion-dot" [class.valid]="hasNumber" aria-hidden="true"></span>
+              <span class="criterion-text">At least one number</span>
+            </li>
+          </ul>
+
+          <button type="submit" class="login-submit-btn">Register</button>
+
+          <a href="#" class="forgot-password" (click)="openLogin($event)">Already have an account? Log in</a>
         </form>
       </div>
     }
