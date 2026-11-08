@@ -20,6 +20,8 @@ export class MenuBar {
   public isEditMenuOpen = false;
   public isTrackDesignOpen = false;
   public isLoginOpen = false;
+  public isSignInOpen = false;
+  public registerPassword = '';
   readonly hasRoute = this.gpxExportService.hasRoute;
 
   public color = this.trackStyleHandler.getCurrentStyle().color;
@@ -28,7 +30,7 @@ export class MenuBar {
   /** Toggle the File dropdown menu */
   public toggleFileMenu(event: MouseEvent): void {
     event.stopPropagation();
-    this.isLoginOpen = false;
+    this.closeLoginPopup();
     this.isEditMenuOpen = false;
     this.isFileMenuOpen = !this.isFileMenuOpen;
   }
@@ -40,7 +42,7 @@ export class MenuBar {
   // Toggle the Edit dropdown menu
   public toggleEditMenu(event: MouseEvent): void {
     event.stopPropagation();
-    this.isLoginOpen = false;
+    this.closeLoginPopup();
     this.isFileMenuOpen = false;
     this.isTrackDesignOpen = false;
     this.isEditMenuOpen = !this.isEditMenuOpen;
@@ -61,12 +63,60 @@ export class MenuBar {
     this.isFileMenuOpen = false;
     this.isEditMenuOpen = false;
     this.isTrackDesignOpen = false;
-    this.isLoginOpen = !this.isLoginOpen;
+    if (this.isLoginOpen || this.isSignInOpen) {
+      this.closeLoginPopup();
+    } else {
+      this.isLoginOpen = true;
+      this.isSignInOpen = false;
+    }
   }
 
-  /** Close the user login popup */
+  /** Close the user login and sign-in popups */
   public closeLoginPopup(): void {
     this.isLoginOpen = false;
+    this.isSignInOpen = false;
+    this.registerPassword = '';
+  }
+
+  /** Switch to sign-in popup */
+  public openSignIn(event?: MouseEvent): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.isLoginOpen = false;
+    this.isSignInOpen = true;
+  }
+
+  /** Switch to login popup */
+  public openLogin(event?: MouseEvent): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.isSignInOpen = false;
+    this.isLoginOpen = true;
+  }
+
+  public onPasswordInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.registerPassword = input.value;
+  }
+
+  public get hasMinLength(): boolean {
+    return this.registerPassword.length >= 6;
+  }
+
+  public get hasUppercase(): boolean {
+    return /[A-Z]/.test(this.registerPassword);
+  }
+
+  public get hasLowercase(): boolean {
+    return /[a-z]/.test(this.registerPassword);
+  }
+
+  public get hasNumber(): boolean {
+    return /\d/.test(this.registerPassword);
   }
 
   /** Open the file picker to add a GPX file and close the menu */
