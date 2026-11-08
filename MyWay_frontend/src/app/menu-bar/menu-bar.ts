@@ -17,17 +17,21 @@ export class MenuBar {
   private readonly trackStyleHandler= inject(TrackStyleHandler);
 
   public isFileMenuOpen = false;
-  public isEditMenuOpen= false;
-  public isTrackDesignOpen=false;
+  public isEditMenuOpen = false;
+  public isTrackDesignOpen = false;
+  public isLoginOpen = false;
+  public isSignInOpen = false;
+  public registerPassword = '';
   readonly hasRoute = this.gpxExportService.hasRoute;
 
-  public color= this.trackStyleHandler.getCurrentStyle().color;
-  public weight= this.trackStyleHandler.getCurrentStyle().weight;
+  public color = this.trackStyleHandler.getCurrentStyle().color;
+  public weight = this.trackStyleHandler.getCurrentStyle().weight;
 
   /** Toggle the File dropdown menu */
   public toggleFileMenu(event: MouseEvent): void {
     event.stopPropagation();
-    this.isEditMenuOpen=false;
+    this.closeLoginPopup();
+    this.isEditMenuOpen = false;
     this.isFileMenuOpen = !this.isFileMenuOpen;
   }
 
@@ -36,20 +40,83 @@ export class MenuBar {
     this.isFileMenuOpen = false;
   }
   // Toggle the Edit dropdown menu
-  public toggleEditMenu(event:MouseEvent):void{
+  public toggleEditMenu(event: MouseEvent): void {
     event.stopPropagation();
-    this.isFileMenuOpen=false;
-    this.isTrackDesignOpen=false;
-    this.isEditMenuOpen=!this.isEditMenuOpen;
+    this.closeLoginPopup();
+    this.isFileMenuOpen = false;
+    this.isTrackDesignOpen = false;
+    this.isEditMenuOpen = !this.isEditMenuOpen;
   }
   //Close the Edit dropdown menu
-  public closeEditMenu(): void{
-    this.isEditMenuOpen= false;
-    this.isTrackDesignOpen=false;
+  public closeEditMenu(): void {
+    this.isEditMenuOpen = false;
+    this.isTrackDesignOpen = false;
   }
   //Opne-close the Track submenu
-  public toggleTrackDesign(): void{
-    this.isTrackDesignOpen= !this.isTrackDesignOpen;
+  public toggleTrackDesign(): void {
+    this.isTrackDesignOpen = !this.isTrackDesignOpen;
+  }
+
+  /** Toggle the user login popup */
+  public toggleLoginPopup(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isFileMenuOpen = false;
+    this.isEditMenuOpen = false;
+    this.isTrackDesignOpen = false;
+    if (this.isLoginOpen || this.isSignInOpen) {
+      this.closeLoginPopup();
+    } else {
+      this.isLoginOpen = true;
+      this.isSignInOpen = false;
+    }
+  }
+
+  /** Close the user login and sign-in popups */
+  public closeLoginPopup(): void {
+    this.isLoginOpen = false;
+    this.isSignInOpen = false;
+    this.registerPassword = '';
+  }
+
+  /** Switch to sign-in popup */
+  public openSignIn(event?: MouseEvent): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.isLoginOpen = false;
+    this.isSignInOpen = true;
+  }
+
+  /** Switch to login popup */
+  public openLogin(event?: MouseEvent): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    this.isSignInOpen = false;
+    this.isLoginOpen = true;
+  }
+
+  public onPasswordInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.registerPassword = input.value;
+  }
+
+  public get hasMinLength(): boolean {
+    return this.registerPassword.length >= 6;
+  }
+
+  public get hasUppercase(): boolean {
+    return /[A-Z]/.test(this.registerPassword);
+  }
+
+  public get hasLowercase(): boolean {
+    return /[a-z]/.test(this.registerPassword);
+  }
+
+  public get hasNumber(): boolean {
+    return /\d/.test(this.registerPassword);
   }
 
   /** Open the file picker to add a GPX file and close the menu */
@@ -87,19 +154,21 @@ export class MenuBar {
     this.trackStyleHandler.setWeight(this.weight);
   }
 
-  /** Close the File dropdown menu when clicking outside the component */
+  /** Close menus and popups when clicking outside the component */
   @HostListener('document:click', ['$event'])
   public onDocumentClick(event: MouseEvent): void {
     if (!this.elementRef.nativeElement.contains(event.target as Node)) {
       this.closeFileMenu();
       this.closeEditMenu();
+      this.closeLoginPopup();
     }
   }
 
-  /** Close the File dropdown menu when pressing Escape */
+  /** Close menus and popups when pressing Escape */
   @HostListener('document:keydown.escape')
   public onEscape(): void {
     this.closeFileMenu();
     this.closeEditMenu();
+    this.closeLoginPopup();
   }
 }
