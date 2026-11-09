@@ -163,3 +163,72 @@
     </div>
   </div>
 }
+
+<!-- Side panel Route details -->
+@if (selectedTrack(); as track) {
+  <aside class="waypoint-sidebar">
+    <div class="sidebar-header">
+      <div class="header-titles">
+        <span class="sidebar-category-caption">Route details</span>
+        <h2 class="sidebar-title">{{ track.name || 'GPX Route' }}</h2>
+      </div>
+      <button type="button" class="btn-close-sidebar" (click)="closeTrackDetails()" aria-label="Close">
+        &times;
+      </button>
+    </div>
+
+    <div class="sidebar-body">
+      <!-- category badge and difficulty -->
+      <div class="sidebar-categories">
+        @if (track.category) {
+          <span class="category-chip route-cat-{{ track.category }}">
+            {{ track.category }}
+          </span>
+        }
+        @if (track.difficulty) {
+          <span class="difficulty-badge diff-{{ track.difficulty }}">
+            Difficoltà: {{ track.difficulty }}
+          </span>
+        }
+      </div>
+
+      <!-- Metrics Card: Distance (metres) and estimate time -->
+      <div class="sidebar-meta-card">
+        <div class="meta-item">
+          <span class="meta-label">Distanza</span>
+          <span class="meta-value">
+            {{ (track.distanceMeters ?? 0).toLocaleString('it-IT') }} m
+            <small style="color: #64748b; font-weight: normal;">
+              ({{ ((track.distanceMeters ?? 0) / 1000).toFixed(1) }} km)
+            </small>
+          </span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Estimate time</span>
+          <span class="meta-value">
+            {{ formatDuration(track.estimatedDurationSeconds ?? 0) }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Color Info Track -->
+      <div class="sidebar-section">
+        <h4 class="section-title">Look on the map</h4>
+        <div class="track-style-preview-box">
+          <span class="track-line-swatch" [style.background-color]="track.color"></span>
+          <div class="track-style-info">
+            <span class="track-style-label">Color category {{ track.category }}</span>
+            <small class="track-style-hint">Customizable from the button below</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Route (SCRUM-55) -->
+      <div class="sidebar-actions">
+        <button type="button" class="btn-customize-waypoint">
+          Custom Route
+        </button>
+      </div>
+    </div>
+  </aside>
+}
