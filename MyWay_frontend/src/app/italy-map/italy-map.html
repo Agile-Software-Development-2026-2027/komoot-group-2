@@ -14,3 +14,221 @@
     }
   </div>
 }
+
+<!-- Side panel Waypoint details -->
+@if (selectedWaypoint(); as wp) {
+<aside class="waypoint-sidebar">
+  <div class="sidebar-header">
+    <div class="header-titles">
+      <span class="sidebar-category-caption">Waypoint's detail page</span>
+      <h2 class="sidebar-title">{{ wp.name || 'Waypoint' }}</h2>
+    </div>
+    <button type="button" class="btn-close-sidebar" (click)="closeWaypointDetails()" aria-label="Close">
+      &times;
+    </button>
+  </div>
+
+  <div class="sidebar-body">
+
+    <!-- Badge Categories -->
+    @if (wp.categories && wp.categories.length > 0) {
+    <div class="sidebar-categories">
+      @for (cat of wp.categories; track cat) {
+      <span class="category-chip cat-{{ cat.replace(' ', '-') }}">
+              {{ cat }}
+            </span>
+      }
+    </div>
+    }
+
+    <!-- Metrics: Quota and Coordinates -->
+    <div class="sidebar-meta-card">
+      @if (wp.ele !== undefined && wp.ele !== null) {
+      <div class="meta-item">
+        <span class="meta-label">Elevation</span>
+        <span class="meta-value">{{ wp.ele }} m</span>
+      </div>
+      }
+      <div class="meta-item">
+        <span class="meta-label">Coordinates</span>
+        <span class="meta-value">{{ wp.lat.toFixed(4) }}°, {{ wp.lon.toFixed(4) }}°</span>
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div class="sidebar-section">
+      <h4 class="section-title">Description</h4>
+      @if (wp.desc) {
+      <p class="sidebar-desc">{{ wp.desc }}</p>
+      } @else {
+      <p class="sidebar-no-desc">No description present for this point.</p>
+      }
+    </div>
+
+    <!-- Photo gallery -->
+    @if (wp.photos && wp.photos.length > 0) {
+    <div class="sidebar-section">
+      <h4 class="section-title">Photo ({{ wp.photos.length }})</h4>
+      <div class="sidebar-photos-grid">
+        @for (photo of wp.photos; track $index) {
+        <div class="photo-card" (click)="openPhotoPreview(photo)" style="cursor: pointer;">
+          <img [src]="photo" alt="Waypoint photo" loading="lazy" />
+        </div>
+        }
+      </div>
+    </div>
+    }
+
+    <!-- custom button (SCRUM-53) -->
+    <div class="sidebar-actions">
+      <button type="button" class="btn-customize-waypoint" (click)="openEditModal()">
+        Custom Waypoint
+      </button>
+    </div>
+
+  </div>
+</aside>
+}
+<!-- Lightbox Overlay Zoomed Photo -->
+@if (previewPhotoUrl(); as photoUrl) {
+  <div class="photo-lightbox-overlay" (click)="closePhotoPreview()">
+    <div class="photo-lightbox-modal" (click)="$event.stopPropagation()">
+      <button type="button" class="btn-close-lightbox" (click)="closePhotoPreview()" aria-label="Close">
+        &times;
+      </button>
+      <img [src]="photoUrl" alt="Anteprima ingrandita" class="photo-lightbox-img" />
+    </div>
+  </div>
+}
+<!-- POP-UP waypoint adding info -->
+@if (isEditingWaypoint()) {
+  <div class="edit-modal-backdrop" (click)="closeEditModal()">
+    <div class="edit-modal-card" (click)="$event.stopPropagation()">
+      <div class="edit-modal-header">
+        <h3>Custom Waypoint</h3>
+        <button type="button" class="btn-close-modal" (click)="closeEditModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="edit-modal-body">
+        <div class="edit-group">
+          <label class="edit-label">Categories (choose one or more):</label>
+          <div class="category-select-grid">
+            @for (cat of availableCategories; track cat) {
+              <button
+                type="button"
+                class="category-select-chip"
+                [class.selected]="editCategories().includes(cat)"
+                (click)="toggleCategory(cat)">
+                {{ cat }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="edit-group">
+          <label class="edit-label" for="wp-desc-input">Description:</label>
+          <textarea
+            id="wp-desc-input"
+            class="edit-textarea"
+            rows="3"
+            placeholder="Add info for this waypoint..."
+            [value]="editDesc()"
+            (input)="onDescInput($event)"></textarea>
+        </div>
+
+        <div class="edit-group">
+          <label class="edit-label">Photo:</label>
+          <label class="btn-upload-file">
+            Upload images
+            <input type="file" accept="image/*" multiple (change)="onPhotosSelected($event)" hidden />
+          </label>
+
+          @if (editPhotos().length > 0) {
+            <div class="edit-photos-preview">
+              @for (photo of editPhotos(); track $index) {
+                <div class="photo-preview-item">
+                  <img [src]="photo" alt="Preview" />
+                  <button type="button" class="btn-remove-photo" (click)="removePhoto($index)" title="Remove">&times;</button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="edit-modal-footer">
+        <button type="button" class="btn-modal-cancel" (click)="closeEditModal()">Cancel</button>
+        <button type="button" class="btn-modal-save" (click)="saveWaypointChanges()">Save</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Side panel Route details -->
+@if (selectedTrack(); as track) {
+  <aside class="waypoint-sidebar">
+    <div class="sidebar-header">
+      <div class="header-titles">
+        <span class="sidebar-category-caption">Route details</span>
+        <h2 class="sidebar-title">{{ track.name || 'GPX Route' }}</h2>
+      </div>
+      <button type="button" class="btn-close-sidebar" (click)="closeTrackDetails()" aria-label="Close">
+        &times;
+      </button>
+    </div>
+
+    <div class="sidebar-body">
+      <!-- category badge and difficulty -->
+      <div class="sidebar-categories">
+        @if (track.category) {
+          <span class="category-chip route-cat-{{ track.category }}">
+            {{ track.category }}
+          </span>
+        }
+        @if (track.difficulty) {
+          <span class="difficulty-badge diff-{{ track.difficulty }}">
+            Difficoltà: {{ track.difficulty }}
+          </span>
+        }
+      </div>
+
+      <!-- Metrics Card: Distance (metres) and estimate time -->
+      <div class="sidebar-meta-card">
+        <div class="meta-item">
+          <span class="meta-label">Distanza</span>
+          <span class="meta-value">
+            {{ (track.distanceMeters ?? 0).toLocaleString('it-IT') }} m
+            <small style="color: #64748b; font-weight: normal;">
+              ({{ ((track.distanceMeters ?? 0) / 1000).toFixed(1) }} km)
+            </small>
+          </span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Estimate time</span>
+          <span class="meta-value">
+            {{ formatDuration(track.estimatedDurationSeconds ?? 0) }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Color Info Track -->
+      <div class="sidebar-section">
+        <h4 class="section-title">Look on the map</h4>
+        <div class="track-style-preview-box">
+          <span class="track-line-swatch" [style.background-color]="track.color"></span>
+          <div class="track-style-info">
+            <span class="track-style-label">Color category {{ track.category }}</span>
+            <small class="track-style-hint">Customizable from the button below</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Route (SCRUM-55) -->
+      <div class="sidebar-actions">
+        <button type="button" class="btn-customize-waypoint">
+          Custom Route
+        </button>
+      </div>
+    </div>
+  </aside>
+}

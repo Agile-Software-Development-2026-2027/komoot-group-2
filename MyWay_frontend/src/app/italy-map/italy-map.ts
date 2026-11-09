@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import * as L from 'leaflet';
-import { GpxService, ParsedGpx } from '../services/gpx.service';
+import { GpxService, ParsedGpx, GpxWaypoint, WaypointCategory, GpxTrack, RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from '../services/route-planner.service';
 
@@ -59,6 +59,93 @@ const END_ICON = L.divIcon({
 const ROUTING_ATTRIBUTION =
   'Routing &copy; <a href="https://routing.openstreetmap.de/about.html">FOSSGIS OSRM</a>, ' +
   '<a href="https://www.openstreetmap.org/fixthemap">Fix the map</a>';
+
+const CATEGORY_STYLES: Record<WaypointCategory, { svg: string; bgGradient: string; label: string }> = {
+  'fountain': {
+      label: 'Fountain',
+      bgGradient: 'linear-gradient(135deg, #38bdf8, #0284c7)',//color:blue
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>`,
+    },
+    'shelter': {
+      label: 'Shelter',
+      bgGradient: 'linear-gradient(135deg, #f59e0b, #d97706)',//color: amber
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    },
+    'panoramic view': {
+      label: 'Panoramic view',
+      bgGradient: 'linear-gradient(135deg, #a855f7, #7c3aed)',//color: purple
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/></svg>`,
+    },
+    'sanctuary': {
+      label: 'Sanctuary',
+      bgGradient: 'linear-gradient(135deg, #eab308, #ca8a04)', //color: yellow
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 22V8a2 2 0 0 0-2-2h-3V2h-2v4H8a2 2 0 0 0-2 2v14"/><path d="M4 22h16"/><path d="M10 14h4v8h-4z"/></svg>`,
+    },
+    'peak': {
+      label: 'Peak',
+      bgGradient: 'linear-gradient(135deg, #f87171, #dc2626)', //color: red
+      svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 20 7-14 4 6 3-3 6 11H2z"/></svg>`,
+    },
+};
+
+const AVAILABLE_CATEGORIES: WaypointCategory[] = [
+  'fountain',
+  'shelter',
+  'panoramic view',
+  'sanctuary',
+  'peak',
+];
+
+export const ROUTE_CATEGORY_CONFIG: Record<RouteCategory, { label: string; defaultColor: string; speedKmH: number }> = {
+  'hiking':  { label: 'Hiking',  defaultColor: '#10b981', speedKmH: 4.0 },
+  'cycling': { label: 'Cycling', defaultColor: '#2563eb', speedKmH: 15.0 },
+  'running': { label: 'Running', defaultColor: '#f97316', speedKmH: 9.0 },
+  'walking': { label: 'Walking', defaultColor: '#8b5cf6', speedKmH: 4.5 },
+};
+
+function calculateTrackDistanceMeters(track: GpxTrack): number {
+  let totalMeters = 0;
+  for (const seg of track.segments) {
+    for (let i = 0; i < seg.points.length - 1; i++) {
+      const p1 = L.latLng(seg.points[i][0], seg.points[i][1]);
+      const p2 = L.latLng(seg.points[i + 1][0], seg.points[i + 1][1]);
+      totalMeters += p1.distanceTo(p2);
+    }
+  }
+  return Math.round(totalMeters);
+}
+
+function calculateEstimatedDuration(distanceMeters: number, category: RouteCategory): number {
+  const speedKmH = ROUTE_CATEGORY_CONFIG[category]?.speedKmH ?? 4.0;
+  const speedMetersPerSec = (speedKmH * 1000) / 3600;
+  return Math.round(distanceMeters / speedMetersPerSec);
+}
+
+function calculateDifficulty(distanceMeters: number): RouteDifficulty {
+  if (distanceMeters < 5000) return 'easy';
+  if (distanceMeters < 15000) return 'intermediate';
+  return 'hard';
+}
+
+const DEFAULT_STYLE = {
+  label: 'Waypoint',
+  bgGradient: 'linear-gradient(135deg, #64748b, #334155)', //color: grey
+  svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/></svg>`,
+};
+function createWaypointIcon(wp: GpxWaypoint): L.DivIcon {
+  const primaryCat = wp.categories && wp.categories.length > 0 ? wp.categories[0] : null;
+  const style = primaryCat ? CATEGORY_STYLES[primaryCat] : DEFAULT_STYLE;
+  return L.divIcon({
+    className: 'custom-wp-pin',
+    html: `
+      <div class="komoot-pin" style="background: ${style.bgGradient};" title="${wp.name || style.label}">
+        <span class="komoot-pin-svg">${style.svg}</span>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
 
 function formatDistance(meters: number): string {
   return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
@@ -178,13 +265,12 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     // When click on the map the Map Style list will close; in planning mode it sets a route point
     this.map.on('click', (e: L.LeafletMouseEvent) => {
       this.toggleStylePanel(false);
+      this.closeWaypointDetails();
+      this.closeTrackDetails();
       if (this.planningMode()) {
         this.routePlanner.selectPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
       }
     });
-
-    // Mark Roma
-    L.marker([41.9028, 12.4964]).addTo(this.map).bindPopup('Roma');
 
     // Redraw the start/end markers and the planned route whenever they change
     this.plannedRouteGroup = L.featureGroup().addTo(this.map);
@@ -255,45 +341,52 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     }
 
     // 1. Draw tracks and routes
-    const{color,weight}=this.trackStyleHandler.getCurrentStyle();
+    const{weight}=this.trackStyleHandler.getCurrentStyle();
     for (const track of data.tracks) {
+      if (!track.category) track.category = 'hiking';
+      if (!track.color) track.color = ROUTE_CATEGORY_CONFIG[track.category].defaultColor;
+      if (track.distanceMeters === undefined) track.distanceMeters = calculateTrackDistanceMeters(track);
+      if (track.estimatedDurationSeconds === undefined) {
+        track.estimatedDurationSeconds = calculateEstimatedDuration(track.distanceMeters, track.category);
+      }
+      if (!track.difficulty) track.difficulty = calculateDifficulty(track.distanceMeters);
+
       for (const seg of track.segments) {
         if (seg.points.length > 0) {
           const polyline = L.polyline(seg.points, {
-            color: color,
+            color: track.color,
             weight: weight,
             opacity: 0.85,
             lineJoin: 'round',
           });
-          if (track.name) {
-            polyline.bindPopup(`<b>Traccia:</b> ${this.escapeHtml(track.name)}`);
-          }
+
+          const hitPolyline = L.polyline(seg.points, {
+            weight: 22,
+            opacity: 0,
+            interactive: true,
+          });
+          const onTrackClick = (e: L.LeafletMouseEvent) => {
+            L.DomEvent.stopPropagation(e);
+            this.openTrackDetails(track);
+          };
+
+          polyline.on('click', onTrackClick);
+          hitPolyline.on('click', onTrackClick);
+
           polyline.addTo(this.gpxLayerGroup);
+          hitPolyline.addTo(this.gpxLayerGroup);
         }
       }
     }
 
     // 2. Draw waypoints
     for (const wp of data.waypoints) {
-      const marker = L.marker([wp.lat, wp.lon]);
-      let popupContent = '<div class="waypoint-popup" style="font-family: inherit;">';
-      if (wp.name) {
-        popupContent += `<strong style="font-size: 14px;">${this.escapeHtml(wp.name)}</strong>`;
-      } else {
-        popupContent += `<strong style="font-size: 14px;">Waypoint</strong>`;
-      }
-      if (wp.desc) {
-        popupContent += `<div style="font-size: 12px; margin-top: 4px; color: #4b5563;">${this.escapeHtml(wp.desc)}</div>`;
-      }
-      if (wp.ele !== undefined && !isNaN(wp.ele)) {
-        popupContent += `<div style="font-size: 12px; margin-top: 4px; color: #1e293b;"><b>Altitude:</b> ${wp.ele} m</div>`;
-      }
-      const latDir = wp.lat >= 0 ? 'N' : 'S';
-      const lonDir = wp.lon >= 0 ? 'E' : 'W';
-      popupContent += `<div style="font-size: 11px; margin-top: 4px; color: #64748b;">${Math.abs(wp.lat).toFixed(5)}° ${latDir}, ${Math.abs(wp.lon).toFixed(5)}° ${lonDir}</div>`;
-      popupContent += '</div>';
-
-      marker.bindPopup(popupContent);
+      const marker = L.marker([wp.lat, wp.lon], {icon: createWaypointIcon(wp)});
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        this.activeMarker = marker;
+        this.openWaypointDetails(wp);
+      });
       marker.addTo(this.gpxLayerGroup);
     }
 
@@ -304,6 +397,117 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       this.map.setMaxBounds(undefined);
       this.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
     }
+  }
+
+  //POP-UP Showing Info
+  public selectedWaypoint = signal<GpxWaypoint | null>(null);
+  public openWaypointDetails(wp: GpxWaypoint): void {
+    this.selectedWaypoint.set(wp);
+    this.selectedTrack.set(null);
+  }
+  public closeWaypointDetails(): void {
+    this.selectedWaypoint.set(null);
+  }
+
+  public previewPhotoUrl = signal<string | null>(null);
+  public openPhotoPreview(url: string): void {
+    this.previewPhotoUrl.set(url);
+  }
+  public closePhotoPreview(): void {
+    this.previewPhotoUrl.set(null);
+  }
+
+  //POP-UP Adding Info
+  public readonly availableCategories = AVAILABLE_CATEGORIES;
+  public isEditingWaypoint = signal<boolean>(false);
+  public editCategories = signal<WaypointCategory[]>([]);
+  public editDesc = signal<string>('');
+  public editPhotos = signal<string[]>([]);
+  private activeMarker?: L.Marker;
+
+  public openEditModal(): void {
+    const wp = this.selectedWaypoint();
+    if (!wp) return;
+    this.editCategories.set(wp.categories ? [...wp.categories] : []);
+    this.editDesc.set(wp.desc || '');
+    this.editPhotos.set(wp.photos ? [...wp.photos] : []);
+    this.isEditingWaypoint.set(true);
+  }
+
+  public closeEditModal(): void {
+    this.isEditingWaypoint.set(false);
+  }
+
+  public toggleCategory(cat: WaypointCategory): void {
+    const current = this.editCategories();
+    if (current.includes(cat)) {
+      this.editCategories.set(current.filter((c) => c !== cat));
+    } else {
+      this.editCategories.set([...current, cat]);
+    }
+  }
+
+  // POP-UP Showing Route info
+  public readonly formatDuration = formatDuration;
+  public selectedTrack = signal<GpxTrack | null>(null);
+  public openTrackDetails(track: GpxTrack): void {
+    this.selectedWaypoint.set(null);
+    this.selectedTrack.set(track);
+  }
+  public closeTrackDetails(): void {
+    this.selectedTrack.set(null);
+  }
+
+  public onDescInput(event: Event): void {
+    this.editDesc.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  //read image file and covert it in Base64
+  public onPhotosSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const files = Array.from(input.files);
+    const MAX_SIZE = 5 * 1024 * 1024; // max 5 MB for each photo
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        alert(`The file "${file.name}" is not a valid image.`);
+        continue;
+      }
+      if (file.size > MAX_SIZE) {
+        alert(`The image "${file.name}" exceeds the 5 MB limit.`);
+        continue;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          this.editPhotos.update((photos) => [...photos, reader.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    input.value = '';
+  }
+
+  public removePhoto(index: number): void {
+    this.editPhotos.update((photos) => photos.filter((_, i) => i !== index));
+  }
+
+  public saveWaypointChanges(): void {
+    const wp = this.selectedWaypoint();
+    if (!wp) return;
+
+    wp.categories = this.editCategories();
+    wp.desc = this.editDesc();
+    wp.photos = this.editPhotos();
+
+    this.selectedWaypoint.set({ ...wp });
+
+    if (this.activeMarker) {
+      this.activeMarker.setIcon(createWaypointIcon(wp));
+    }
+
+    this.closeEditModal();
   }
 
   private escapeHtml(text: string): string {
