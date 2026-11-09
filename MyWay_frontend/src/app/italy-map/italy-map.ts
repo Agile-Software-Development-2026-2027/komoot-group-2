@@ -88,6 +88,14 @@ const CATEGORY_STYLES: Record<WaypointCategory, { svg: string; bgGradient: strin
     },
 };
 
+const AVAILABLE_CATEGORIES: WaypointCategory[] = [
+  'fountain',
+  'shelter',
+  'panoramic view',
+  'sanctuary',
+  'peak',
+];
+
 const DEFAULT_STYLE = {
   label: 'Waypoint',
   bgGradient: 'linear-gradient(135deg, #64748b, #334155)', //color: grey
@@ -232,9 +240,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       }
     });
 
-    // Mark Roma
-    L.marker([41.9028, 12.4964]).addTo(this.map).bindPopup('Roma');
-
     // Redraw the start/end markers and the planned route whenever they change
     this.plannedRouteGroup = L.featureGroup().addTo(this.map);
     effect(
@@ -327,6 +332,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       const marker = L.marker([wp.lat, wp.lon], {icon: createWaypointIcon(wp)});
       marker.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
+        this.activeMarker = marker;
         this.openWaypointDetails(wp);
       });
       marker.addTo(this.gpxLayerGroup);
@@ -341,6 +347,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     }
   }
 
+  //POP-UP Showing Info
   public selectedWaypoint = signal<GpxWaypoint | null>(null);
   public openWaypointDetails(wp: GpxWaypoint): void {
     this.selectedWaypoint.set(wp);
@@ -355,6 +362,88 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   }
   public closePhotoPreview(): void {
     this.previewPhotoUrl.set(null);
+  }
+
+  //POP-UP Adding Info
+  public readonly availableCategories = AVAILABLE_CATEGORIES;
+  public isEditingWaypoint = signal<boolean>(false);
+  public editCategories = signal<WaypointCategory[]>([]);
+  public editDesc = signal<string>('');
+  public editPhotos = signal<string[]>([]);
+  private activeMarker?: L.Marker;
+
+  public openEditModal(): void {
+    const wp = this.selectedWaypoint();
+    if (!wp) return;
+    this.editCategories.set(wp.categories ? [...wp.categories] : []);
+    this.editDesc.set(wp.desc || '');
+    this.editPhotos.set(wp.photos ? [...wp.photos] : []);
+    this.isEditingWaypoint.set(true);
+  }
+
+  public closeEditModal(): void {
+    this.isEditingWaypoint.set(false);
+  }
+
+  public toggleCategory(cat: WaypointCategory): void {
+    const current = this.editCategories();
+    if (current.includes(cat)) {
+      this.editCategories.set(current.filter((c) => c !== cat));
+    } else {
+      this.editCategories.set([...current, cat]);
+    }
+  }
+
+  public onDescInput(event: Event): void {
+    this.editDesc.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  //read image file and covert it in Base64
+  public onPhotosSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const files = Array.from(input.files);
+    const MAX_SIZE = 5 * 1024 * 1024; // max 5 MB for each photo
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        alert(`The file "${file.name}" is not a valid image.`);
+        continue;
+      }
+      if (file.size > MAX_SIZE) {
+        alert(`The image "${file.name}" exceeds the 5 MB limit.`);
+        continue;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          this.editPhotos.update((photos) => [...photos, reader.result as string]);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+    input.value = '';
+  }
+
+  public removePhoto(index: number): void {
+    this.editPhotos.update((photos) => photos.filter((_, i) => i !== index));
+  }
+
+  public saveWaypointChanges(): void {
+    const wp = this.selectedWaypoint();
+    if (!wp) return;
+
+    wp.categories = this.editCategories();
+    wp.desc = this.editDesc();
+    wp.photos = this.editPhotos();
+
+    this.selectedWaypoint.set({ ...wp });
+
+    if (this.activeMarker) {
+      this.activeMarker.setIcon(createWaypointIcon(wp));
+    }
+
+    this.closeEditModal();
   }
 
   private escapeHtml(text: string): string {
