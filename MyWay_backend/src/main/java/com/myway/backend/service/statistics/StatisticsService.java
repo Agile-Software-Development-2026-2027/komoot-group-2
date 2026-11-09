@@ -1,7 +1,7 @@
 package com.myway.backend.service.statistics;
 
-import com.myway.backend.dto.GPXDataDTO.PointDTO;
-import com.myway.backend.dto.GPXDataDTO.RouteDTO;
+import com.myway.backend.dto.gpx.PointDTO;
+import com.myway.backend.dto.gpx.RouteDTO;
 
 public interface StatisticsService {
     

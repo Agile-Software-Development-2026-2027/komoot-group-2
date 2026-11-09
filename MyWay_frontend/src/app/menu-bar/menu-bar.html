@@ -150,7 +150,7 @@
           <button type="submit" class="login-submit-btn">Log in</button>
 
           <a href="#" class="forgot-password" (click)="$event.preventDefault()">Forgot password?</a>
-          <a href="#" class="forgot-password" (click)="openSignIn($event)">Sign in</a>
+          <a href="#" class="forgot-password" (click)="openSignIn($event)">Sign up</a>
         </form>
       </div>
     }
@@ -162,7 +162,7 @@
         aria-modal="true"
         aria-labelledby="signin-title"
         (click)="$event.stopPropagation()">
-        <h3 id="signin-title" class="login-title">Sign in</h3>
+        <h3 id="signin-title" class="login-title">Sign up</h3>
         <form class="login-form" (submit)="$event.preventDefault()">
           <div class="form-group">
             <label for="signin-email">Email</label>
