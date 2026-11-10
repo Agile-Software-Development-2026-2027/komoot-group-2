@@ -33,10 +33,10 @@
     </div>
     <button type="button" class="panel-close" (click)="sidebar.close()" aria-label="Close sidebar" title="Close sidebar">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="11 17 6 12 11 7" />
-        <polyline points="18 17 13 12 18 7" />
-      </svg>
+         stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="13 17 18 12 13 7" />
+      <polyline points="6 17 11 12 6 7" />
+    </svg>
     </button>
   </header>
 
@@ -119,37 +119,10 @@
           </div>
         </div>
 
-        <!-- Custom Route (SCRUM-55): track color and thickness -->
-        <button
-          type="button"
-          class="btn-primary"
-          [class.active]="isCustomizing()"
-          aria-controls="route-customize-panel"
-          [attr.aria-expanded]="isCustomizing()"
-          (click)="isCustomizing.set(!isCustomizing())">
+        <!-- Custom Route -->
+        <button type="button" class="btn-primary" (click)="openEditTrackModal()">
           Custom Route
         </button>
-
-        @if (isCustomizing()) {
-          <div id="route-customize-panel" class="customize-panel">
-            <label class="customize-row">
-              <span>Color</span>
-              <input type="color" class="color-input" [value]="color.value" (input)="onColorChange($event)" />
-            </label>
-            <label class="customize-row stacked">
-              <span>Thickness: {{ weight }} px</span>
-              <input
-                type="range"
-                class="weight-input"
-                [min]="minWeight"
-                [max]="maxWeight"
-                step="1"
-                [value]="weight"
-                (input)="onWeightChange($event)" />
-            </label>
-            <small class="customize-hint">Applies to all the routes on the map.</small>
-          </div>
-        }
       } @else {
         <div class="empty-state">
           <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
@@ -173,6 +146,100 @@
         &times;
       </button>
       <img [src]="photoUrl" alt="Enlarged route photo" class="photo-lightbox-img" />
+    </div>
+  </div>
+}
+
+<!-- pop up custom route -->
+@if (isEditingTrack()) {
+  <div class="edit-modal-backdrop" (click)="closeEditTrackModal()">
+    <div class="edit-modal-card" (click)="$event.stopPropagation()">
+      <div class="edit-modal-header">
+        <h3>Customize Route</h3>
+        <button type="button" class="btn-close-modal" (click)="closeEditTrackModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="edit-modal-body">
+        @if (summary()?.isGpx) {
+          <div class="edit-group">
+            <label class="edit-label" for="track-name-input">Route Name:</label>
+            <input
+              id="track-name-input"
+              type="text"
+              class="edit-text-input"
+              [value]="editTrackName()"
+              (input)="editTrackName.set($any($event.target).value)" />
+          </div>
+
+          <div class="edit-group">
+            <label class="edit-label">Category:</label>
+            <div class="category-select-grid">
+              @for (cat of availableRouteCategories; track cat) {
+                <button
+                  type="button"
+                  class="category-select-chip"
+                  [class.selected]="editTrackCategory() === cat"
+                  (click)="setTrackCategory(cat)">
+                  {{ cat }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="edit-group">
+            <label class="edit-label">Difficulty:</label>
+            <div class="category-select-grid">
+              @for (diff of availableRouteDifficulties; track diff) {
+                <button
+                  type="button"
+                  class="category-select-chip"
+                  [class.selected]="editTrackDifficulty() === diff"
+                  (click)="editTrackDifficulty.set(diff)">
+                  {{ diff }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="edit-group">
+          <label class="edit-label">Track Color:</label>
+          <div class="route-color-picker-row">
+            @for (col of presetTrackColors; track col) {
+              <button
+                type="button"
+                class="color-swatch-btn"
+                [style.background-color]="col"
+                [class.active]="editTrackColor() === col"
+                (click)="editTrackColor.set(col)"></button>
+            }
+            <label class="custom-color-btn" title="Choose custom color">
+              <input
+                type="color"
+                [value]="editTrackColor()"
+                (input)="editTrackColor.set($any($event.target).value)"
+                hidden />
+            </label>
+          </div>
+        </div>
+
+        <div class="edit-group">
+          <label class="edit-label">Thickness: {{ editTrackWeight() }} px</label>
+          <input
+            type="range"
+            class="weight-input"
+            [min]="minWeight"
+            [max]="maxWeight"
+            step="1"
+            [value]="editTrackWeight()"
+            (input)="editTrackWeight.set(+$any($event.target).value)" />
+        </div>
+      </div>
+
+      <div class="edit-modal-footer">
+        <button type="button" class="btn-modal-cancel" (click)="closeEditTrackModal()">Cancel</button>
+        <button type="button" class="btn-modal-save" (click)="saveTrackChanges()">Save</button>
+      </div>
     </div>
   </div>
 }

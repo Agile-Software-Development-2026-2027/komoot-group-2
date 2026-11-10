@@ -43,6 +43,7 @@ export class SidebarService {
   readonly isOpen = signal(false);
   readonly selectedRoute = signal<SidebarRoute | null>(null);
   readonly elevation = signal<ElevationState>({ status: 'idle' });
+  readonly trackColorUpdate = signal<{ track: GpxTrack; color: string } | null>(null);
 
   private elevationRequest?: Subscription;
   /** Elevation already looked up per track/route, so selecting it again does not call the API again */
@@ -95,6 +96,13 @@ export class SidebarService {
   showPlannedRoute(route: PlannedRoute): void {
     this.select({ kind: 'planned', route });
     this.loadElevation(route, route.points);
+  }
+  updateGpxTrack(track: GpxTrack): void {
+    this.trackColorUpdate.set({ track, color: track.color || '#10b981' });
+    const current = this.selectedRoute();
+    if (current?.kind === 'gpx' && current.track === track) {
+      this.selectedRoute.set({ kind: 'gpx', track, waypoints: current.waypoints });
+    }
   }
 
   clearSelection(): void {

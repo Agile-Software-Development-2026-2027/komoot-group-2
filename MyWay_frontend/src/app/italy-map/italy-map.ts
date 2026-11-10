@@ -9,6 +9,7 @@ import {
   effect,
   inject,
   signal,
+  untracked
 } from '@angular/core';
 import { Subscription, pairwise } from 'rxjs';
 import * as L from 'leaflet';
@@ -117,7 +118,7 @@ function calculateTrackDistanceMeters(track: GpxTrack): number {
   return Math.round(totalMeters);
 }
 
-function calculateEstimatedDuration(distanceMeters: number, category: RouteCategory): number {
+export function calculateEstimatedDuration(distanceMeters: number, category: RouteCategory): number {
   const speedKmH = ROUTE_CATEGORY_CONFIG[category]?.speedKmH ?? 4.0;
   const speedMetersPerSec = (speedKmH * 1000) / 3600;
   return Math.round(distanceMeters / speedMetersPerSec);
@@ -257,12 +258,15 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
     // Bottom corners stack upwards: added first = lowest, so the zoom buttons end up above the tools
     this.addToolsControl();
-    L.control.zoom({ position: 'bottomright' }).addTo(this.map);
+    L.control.zoom({ position: 'topleft' }).addTo(this.map);
 
     // When click on the map the Map Style list will close; in planning mode it sets a route point
     this.map.on('click', (e: L.LeafletMouseEvent) => {
       this.toggleStylePanel(false);
       this.closeWaypointDetails();
+      if (!this.planningMode()) {
+        this.sidebar.close();
+      }
       if (this.planningMode()) {
         this.routePlanner.selectPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
       }
@@ -277,6 +281,25 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
           this.routePlanner.end(),
           this.routePlanner.route(),
         ),
+      { injector: this.injector },
+    );
+
+    effect(
+      () => {
+        if (this.sidebar.isOpen()) {
+          untracked(() => this.closeWaypointDetails());
+        }
+      },
+      { injector: this.injector },
+    );
+    effect(
+      () => {
+        const update = this.sidebar.trackColorUpdate();
+        if (update) {
+          const lines = this.trackLines.get(update.track);
+          lines?.forEach((line) => line.setStyle({ color: update.color }));
+        }
+      },
       { injector: this.injector },
     );
 
@@ -410,13 +433,11 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       // Clear strict bounds so tracks outside Italy can be viewed
       this.map.setMaxBounds(undefined);
       const padding = 40;
-      // Keep the track out from under the sidebar when it is open on the left (but use at most half the map)
-      const leftPadding = this.sidebar.isOpen()
-        ? Math.min(SIDEBAR_MAP_OVERLAP_PX, this.map.getSize().x / 2)
-        : padding;
+      // Keep the track out from under the sidebar when it is open on the right
+      const rightPadding = this.sidebar.isOpen() ? Math.min(SIDEBAR_MAP_OVERLAP_PX, this.map.getSize().x / 2) : padding;
       this.map.fitBounds(bounds, {
-        paddingTopLeft: [leftPadding, padding],
-        paddingBottomRight: [padding, padding],
+        paddingTopLeft: [padding, padding],
+        paddingBottomRight: [rightPadding, padding],
         maxZoom: 16,
       });
     }
@@ -425,6 +446,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   //POP-UP Showing Info
   public selectedWaypoint = signal<GpxWaypoint | null>(null);
   public openWaypointDetails(wp: GpxWaypoint): void {
+    this.sidebar.close();
     this.selectedWaypoint.set(wp);
   }
   public closeWaypointDetails(): void {
@@ -557,7 +579,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
   /** Pen and Map Style icons */
   private addToolsControl(): void {
-    const tools = new L.Control({ position: 'bottomright' });
+    const tools = new L.Control({ position: 'topleft' });
 
     tools.onAdd = () => {
       const container = L.DomUtil.create('div', 'map-tools');
