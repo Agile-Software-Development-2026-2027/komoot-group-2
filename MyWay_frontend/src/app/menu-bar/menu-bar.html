@@ -59,15 +59,29 @@
     <button
       type="button"
       class="user-btn"
-      [class.active]="isLoginOpen || isSignInOpen"
+      [class.active]="isUserPopupOpen()"
+      [class.logged-in]="isLoggedIn()"
       (click)="toggleLoginPopup($event)"
       aria-haspopup="dialog"
-      [attr.aria-expanded]="isLoginOpen || isSignInOpen"
-      aria-label="Log in">
+      [attr.aria-expanded]="isUserPopupOpen()"
+      [attr.aria-label]="isLoggedIn() ? 'Account' : 'Log in'">
       <img src="user.png" alt="User" class="user-icon" />
     </button>
 
-    @if (isLoginOpen) {
+    @if (isAccountOpen()) {
+      <div
+        class="login-popup"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="account-title"
+        (click)="$event.stopPropagation()">
+        <h3 id="account-title" class="login-title">Account</h3>
+        <p class="account-email">{{ userEmail() }}</p>
+        <button type="button" class="login-submit-btn" (click)="onLogout()">Log out</button>
+      </div>
+    }
+
+    @if (isLoginOpen()) {
       <div
         class="login-popup"
         role="dialog"
@@ -75,10 +89,13 @@
         aria-labelledby="login-title"
         (click)="$event.stopPropagation()">
         <h3 id="login-title" class="login-title">Log in</h3>
-        <form class="login-form" (submit)="$event.preventDefault()">
+        <form
+          class="login-form"
+          (submit)="onLoginSubmit($event, loginEmail.value, loginPassword.value)">
           <div class="form-group">
             <label for="login-email">Email</label>
             <input
+              #loginEmail
               id="login-email"
               type="email"
               autocomplete="email" />
@@ -87,12 +104,19 @@
           <div class="form-group">
             <label for="login-password">Password</label>
             <input
+              #loginPassword
               id="login-password"
               type="password"
               autocomplete="current-password" />
           </div>
 
-          <button type="submit" class="login-submit-btn">Log in</button>
+          @if (authError(); as error) {
+            <p class="auth-error" role="alert">{{ error }}</p>
+          }
+
+          <button type="submit" class="login-submit-btn" [disabled]="isSubmitting()">
+            {{ isSubmitting() ? 'Logging in…' : 'Log in' }}
+          </button>
 
           <a href="#" class="forgot-password" (click)="$event.preventDefault()">Forgot password?</a>
           <a href="#" class="forgot-password" (click)="openSignIn($event)">Sign up</a>
@@ -100,7 +124,7 @@
       </div>
     }
 
-    @if (isSignInOpen) {
+    @if (isSignInOpen()) {
       <div
         class="login-popup"
         role="dialog"
@@ -108,10 +132,13 @@
         aria-labelledby="signin-title"
         (click)="$event.stopPropagation()">
         <h3 id="signin-title" class="login-title">Sign up</h3>
-        <form class="login-form" (submit)="$event.preventDefault()">
+        <form
+          class="login-form"
+          (submit)="onRegisterSubmit($event, signinEmail.value, signinUsername.value, registerPassword)">
           <div class="form-group">
             <label for="signin-email">Email</label>
             <input
+              #signinEmail
               id="signin-email"
               type="email"
               autocomplete="email" />
@@ -120,6 +147,7 @@
           <div class="form-group">
             <label for="signin-username">Username</label>
             <input
+              #signinUsername
               id="signin-username"
               type="text"
               autocomplete="username" />
@@ -154,7 +182,13 @@
             </li>
           </ul>
 
-          <button type="submit" class="login-submit-btn">Register</button>
+          @if (authError(); as error) {
+            <p class="auth-error" role="alert">{{ error }}</p>
+          }
+
+          <button type="submit" class="login-submit-btn" [disabled]="isSubmitting()">
+            {{ isSubmitting() ? 'Registering…' : 'Register' }}
+          </button>
 
           <a href="#" class="forgot-password" (click)="openLogin($event)">Already have an account? Log in</a>
         </form>
