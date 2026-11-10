@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ROUTE_CATEGORY_CONFIG } from '../italy-map/italy-map';
+import { ROUTE_CATEGORY_CONFIG, calculateEstimatedDuration } from '../italy-map/italy-map';
 import { RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { ROUTE_NAME } from '../services/route-planner.service';
 import { SidebarService } from '../services/sidebar.service';
@@ -33,6 +33,13 @@ interface RouteColor {
   label: string;
 }
 
+const AVAILABLE_ROUTE_CATEGORIES: RouteCategory[] = ['hiking', 'cycling', 'running', 'walking'];
+const AVAILABLE_ROUTE_DIFFICULTIES: RouteDifficulty[] = ['easy', 'intermediate', 'hard'];
+const PRESET_TRACK_COLORS = [
+  '#10b981', '#2563eb', '#f97316', '#8b5cf6',
+  '#ef4444', '#f59e0b', '#06b6d4', '#334155',
+];
+
 @Component({
   selector: 'app-sidebar',
   imports: [],
@@ -46,7 +53,6 @@ export class Sidebar {
   protected readonly previewPhotoUrl = signal<string | null>(null);
 
   /** "Custom Route": color and thickness of the tracks on the map */
-  protected readonly isCustomizing = signal(false);
   protected readonly trackStyle = toSignal(this.trackStyleHandler.style$, { requireSync: true });
   protected readonly minWeight = MIN_WEIGHT;
   protected readonly maxWeight = MAX_WEIGHT;
@@ -120,11 +126,64 @@ export class Sidebar {
     return { value, label: value === DEFAULT_TRACK_STYLE.color ? 'Default color' : 'Custom color' };
   }
 
-  protected onColorChange(event: Event): void {
-    this.trackStyleHandler.setColor((event.target as HTMLInputElement).value);
+protected readonly availableRouteCategories = AVAILABLE_ROUTE_CATEGORIES;
+protected readonly availableRouteDifficulties = AVAILABLE_ROUTE_DIFFICULTIES;
+protected readonly presetTrackColors = PRESET_TRACK_COLORS;
+
+protected readonly isEditingTrack = signal(false);
+protected readonly editTrackName = signal('');
+protected readonly editTrackCategory = signal<RouteCategory>('hiking');
+protected readonly editTrackDifficulty = signal<RouteDifficulty>('intermediate');
+protected readonly editTrackColor = signal('#10b981');
+protected readonly editTrackWeight = signal(5);
+
+protected openEditTrackModal(): void {
+  const selected = this.sidebar.selectedRoute();
+  if (!selected) return;
+
+  this.editTrackWeight.set(this.trackStyle().weight);
+  if (selected.kind === 'gpx') {
+    const { track } = selected;
+    this.editTrackName.set(track.name || 'GPX Route');
+    this.editTrackCategory.set(track.category || 'hiking');
+    this.editTrackDifficulty.set(track.difficulty || 'intermediate');
+    this.editTrackColor.set(track.color || ROUTE_CATEGORY_CONFIG[this.editTrackCategory()].defaultColor);
+  } else {
+    this.editTrackName.set(ROUTE_NAME);
+    this.editTrackColor.set(this.trackStyle().color);
+  }
+  this.isEditingTrack.set(true);
+}
+
+protected closeEditTrackModal(): void {
+  this.isEditingTrack.set(false);
+}
+
+protected setTrackCategory(cat: RouteCategory): void {
+  this.editTrackCategory.set(cat);
+  this.editTrackColor.set(ROUTE_CATEGORY_CONFIG[cat].defaultColor);
+}
+
+protected saveTrackChanges(): void {
+  const selected = this.sidebar.selectedRoute();
+  if (!selected) return;
+
+  this.trackStyleHandler.setWeight(this.editTrackWeight());
+
+  if (selected.kind === 'gpx') {
+    const { track } = selected;
+    track.name = this.editTrackName();
+    track.category = this.editTrackCategory();
+    track.difficulty = this.editTrackDifficulty();
+    track.color = this.editTrackColor();
+    if (track.distanceMeters !== undefined) {
+      track.estimatedDurationSeconds = calculateEstimatedDuration(track.distanceMeters, track.category);
+    }
+    this.sidebar.updateGpxTrack(track);
+  } else {
+    this.trackStyleHandler.setColor(this.editTrackColor());
   }
 
-  protected onWeightChange(event: Event): void {
-    this.trackStyleHandler.setWeight(Number((event.target as HTMLInputElement).value));
-  }
+  this.closeEditTrackModal();
+}
 }
