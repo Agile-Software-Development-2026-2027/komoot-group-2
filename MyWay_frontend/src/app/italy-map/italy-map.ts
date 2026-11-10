@@ -10,7 +10,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Subscription, pairwise } from 'rxjs';
 import * as L from 'leaflet';
 import { GpxService, ParsedGpx, GpxWaypoint, WaypointCategory, GpxTrack, RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
@@ -268,7 +268,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       }
     });
 
-
     // Redraw the start/end markers and the planned route whenever they change
     this.plannedRouteGroup = L.featureGroup().addTo(this.map);
     effect(
@@ -289,12 +288,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     });
     // Update the tracks when the user changes color or thickness ("Custom Route" in the sidebar).
     // Only what changed is applied, so a new thickness keeps each GPX track's category color.
-    let previousStyle = this.trackStyleHandler.getCurrentStyle();
-    this.styleSubscription = this.trackStyleHandler.style$.subscribe((style) => {
+    this.styleSubscription = this.trackStyleHandler.style$.pipe(pairwise()).subscribe(([previous, style]) => {
       const changes: L.PathOptions = {};
-      if (style.color !== previousStyle.color) changes.color = style.color;
-      if (style.weight !== previousStyle.weight) changes.weight = style.weight;
-      previousStyle = style;
+      if (style.color !== previous.color) changes.color = style.color;
+      if (style.weight !== previous.weight) changes.weight = style.weight;
 
       for (const [track, lines] of this.trackLines) {
         if (changes.color) track.color = changes.color; // keep the sidebar in sync with the map
@@ -412,13 +409,14 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     if (bounds.isValid()) {
       // Clear strict bounds so tracks outside Italy can be viewed
       this.map.setMaxBounds(undefined);
-      // Keep the track out from under the sidebar when it is open on the left
+      const padding = 40;
+      // Keep the track out from under the sidebar when it is open on the left (but use at most half the map)
       const leftPadding = this.sidebar.isOpen()
         ? Math.min(SIDEBAR_MAP_OVERLAP_PX, this.map.getSize().x / 2)
-        : 40;
+        : padding;
       this.map.fitBounds(bounds, {
-        paddingTopLeft: [leftPadding, 40],
-        paddingBottomRight: [40, 40],
+        paddingTopLeft: [leftPadding, padding],
+        paddingBottomRight: [padding, padding],
         maxZoom: 16,
       });
     }
@@ -470,8 +468,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       this.editCategories.set([...current, cat]);
     }
   }
-
-  // Route info (SCRUM-54) is shown in the sidebar, see SidebarService.showTrack
 
   public onDescInput(event: Event): void {
     this.editDesc.set((event.target as HTMLTextAreaElement).value);

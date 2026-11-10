@@ -323,26 +323,20 @@ export class GpxService {
   private extractSegment(ptElements: Element[]): GpxTrackSegment | null {
     const points: [number, number][] = [];
     const elevations: (number | null)[] = [];
-    let hasElevation = false;
 
     for (const pt of ptElements) {
-      const latStr = pt.getAttribute('lat');
-      const lonStr = pt.getAttribute('lon');
-      if (!latStr || !lonStr) continue;
-
-      const lat = parseFloat(latStr);
-      const lon = parseFloat(lonStr);
+      // parseFloat('') is NaN, so missing attributes/elements are skipped like invalid numbers
+      const lat = parseFloat(pt.getAttribute('lat') ?? '');
+      const lon = parseFloat(pt.getAttribute('lon') ?? '');
       if (isNaN(lat) || isNaN(lon)) continue;
 
-      const eleText = this.getFirstElementByTag(pt, 'ele')?.textContent?.trim();
-      const ele = eleText ? parseFloat(eleText) : NaN;
+      const ele = parseFloat(this.getFirstElementByTag(pt, 'ele')?.textContent ?? '');
       points.push([lat, lon]);
       elevations.push(isNaN(ele) ? null : ele);
-      hasElevation ||= !isNaN(ele);
     }
 
     if (points.length === 0) return null;
-    return hasElevation ? { points, elevations } : { points };
+    return elevations.some((ele) => ele !== null) ? { points, elevations } : { points };
   }
 
   private getElementsByTag(parent: Document | Element, tagName: string): Element[] {

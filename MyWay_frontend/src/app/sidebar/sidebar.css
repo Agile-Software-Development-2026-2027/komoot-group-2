@@ -4,15 +4,20 @@
  * Layering: Leaflet controls (1000) < sidebar (1100) < menu bar dropdowns (1200).
  */
 :host {
+  /* Keep in sync with SIDEBAR_MAP_OVERLAP_PX in sidebar.service.ts */
+  --sidebar-inset: 28px;
+  --sidebar-width: 340px;
+  --sidebar-z-index: 1100;
+
   display: block;
 }
 
 /* Toggle icon, top-left corner of the map while the sidebar is closed */
 .sidebar-toggle {
   position: absolute;
-  top: 28px;
-  left: 28px;
-  z-index: 1100;
+  top: var(--sidebar-inset);
+  left: var(--sidebar-inset);
+  z-index: var(--sidebar-z-index);
   width: 44px;
   height: 44px;
   display: flex;
@@ -45,12 +50,12 @@
 /* Panel: slides in from the left */
 .sidebar-panel {
   position: absolute;
-  top: 28px;
-  left: 28px;
-  bottom: 28px;
-  z-index: 1100;
-  width: 340px;
-  max-width: calc(100% - 56px);
+  top: var(--sidebar-inset);
+  left: var(--sidebar-inset);
+  bottom: var(--sidebar-inset);
+  z-index: var(--sidebar-z-index);
+  width: var(--sidebar-width);
+  max-width: calc(100% - 2 * var(--sidebar-inset));
   display: flex;
   flex-direction: column;
   background: #ffffff;

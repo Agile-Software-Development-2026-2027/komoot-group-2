@@ -32,6 +32,11 @@ describe('ItalyMap', () => {
     (component as unknown as { map: L.Map }).map.fire('click', { latlng: L.latLng(lat, lng) });
   }
 
+  /** Layers drawn by renderGpx, in drawing order (each track line is followed by its click area) */
+  function gpxLayers(): L.Layer[] {
+    return (component as unknown as { gpxLayerGroup: L.FeatureGroup }).gpxLayerGroup.getLayers();
+  }
+
   it('should create', () => {
     expect(component).toBeTruthy();
   });
@@ -49,8 +54,7 @@ describe('ItalyMap', () => {
     const trackStyle = TestBed.inject(TrackStyleHandler);
     const track = { category: 'cycling' as const, segments: [{ points: [[45, 7], [45.2, 7.2]] as [number, number][] }] };
     component.renderGpx({ fileName: 'ride.gpx', waypoints: [], tracks: [track], allCoordinates: [[45, 7], [45.2, 7.2]] });
-    const [line, clickArea] = (component as unknown as { gpxLayerGroup: L.FeatureGroup }).gpxLayerGroup
-      .getLayers() as L.Polyline[];
+    const [line, clickArea] = gpxLayers() as L.Polyline[];
 
     trackStyle.setWeight(9);
     expect(line.options).toMatchObject({ weight: 9, color: '#2563eb' }); // keeps the cycling color
@@ -72,8 +76,7 @@ describe('ItalyMap', () => {
       allCoordinates: [[45, 7], [45.2, 7.2]],
     });
 
-    const gpxLayers = (component as unknown as { gpxLayerGroup: L.FeatureGroup }).gpxLayerGroup.getLayers();
-    const trackLine = gpxLayers.find((layer): layer is L.Polyline => layer instanceof L.Polyline)!;
+    const trackLine = gpxLayers().find((layer): layer is L.Polyline => layer instanceof L.Polyline)!;
     trackLine.fire('click', { latlng: L.latLng(45.1, 7.1) });
 
     expect(showTrackSpy).toHaveBeenCalledWith(expect.objectContaining({ name: 'Loop', distanceMeters: expect.any(Number) }), waypoints);

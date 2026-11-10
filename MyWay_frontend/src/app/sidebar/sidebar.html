@@ -104,21 +104,22 @@
 
         <!-- Color Info Track -->
         @let color = routeColor();
+        @let weight = trackStyle().weight;
         <div class="route-subsection">
           <h4 class="subsection-title">Look on the map</h4>
           <div class="track-style-preview-box">
             <span
               class="track-line-swatch"
-              [style.background-color]="color"
-              [style.height.px]="trackStyle().weight"></span>
+              [style.background-color]="color.value"
+              [style.height.px]="weight"></span>
             <div class="track-style-info">
-              <span class="track-style-label">{{ colorLabel(color) }}</span>
-              <small class="track-style-hint">{{ trackStyle().weight }} px · customizable from the button below</small>
+              <span class="track-style-label">{{ color.label }}</span>
+              <small class="track-style-hint">{{ weight }} px · customizable from the button below</small>
             </div>
           </div>
         </div>
 
-        <!-- Custom Route (SCRUM-55): track color and thickness, formerly Edit > Track design -->
+        <!-- Custom Route (SCRUM-55): track color and thickness -->
         <button
           type="button"
           class="btn-primary"
@@ -133,17 +134,17 @@
           <div id="route-customize-panel" class="customize-panel">
             <label class="customize-row">
               <span>Color</span>
-              <input type="color" class="color-input" [value]="color" (input)="onColorChange($event)" />
+              <input type="color" class="color-input" [value]="color.value" (input)="onColorChange($event)" />
             </label>
             <label class="customize-row stacked">
-              <span>Thickness: {{ trackStyle().weight }} px</span>
+              <span>Thickness: {{ weight }} px</span>
               <input
                 type="range"
                 class="weight-input"
                 [min]="minWeight"
                 [max]="maxWeight"
                 step="1"
-                [value]="trackStyle().weight"
+                [value]="weight"
                 (input)="onWeightChange($event)" />
             </label>
             <small class="customize-hint">Applies to all the routes on the map.</small>

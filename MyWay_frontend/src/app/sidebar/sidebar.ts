@@ -27,6 +27,12 @@ interface StatTile {
   value: string | null;
 }
 
+interface RouteColor {
+  value: string;
+  /** Where the color comes from: the route category, the default style or the user */
+  label: string;
+}
+
 @Component({
   selector: 'app-sidebar',
   imports: [],
@@ -39,7 +45,7 @@ export class Sidebar {
 
   protected readonly previewPhotoUrl = signal<string | null>(null);
 
-  /** "Custom Route": color and thickness of the tracks on the map (was Edit > Track design) */
+  /** "Custom Route": color and thickness of the tracks on the map */
   protected readonly isCustomizing = signal(false);
   protected readonly trackStyle = toSignal(this.trackStyleHandler.style$, { requireSync: true });
   protected readonly minWeight = MIN_WEIGHT;
@@ -99,19 +105,19 @@ export class Sidebar {
     return [...new Set(selected.waypoints.flatMap((wp) => wp.photos ?? []))];
   }
 
-  /** Color the selected route currently has on the map (GPX tracks start with their category color) */
-  protected routeColor(): string {
+  /**
+   * Color the selected route currently has on the map (GPX tracks start with their category color).
+   * Read on every check, like photos(): the map updates track.color in place.
+   */
+  protected routeColor(): RouteColor {
     const selected = this.sidebar.selectedRoute();
-    return (selected?.kind === 'gpx' && selected.track.color) || this.trackStyle().color;
-  }
+    const track = selected?.kind === 'gpx' ? selected.track : undefined;
+    const value = track?.color || this.trackStyle().color;
 
-  protected colorLabel(color: string): string {
-    const selected = this.sidebar.selectedRoute();
-    const category = selected?.kind === 'gpx' ? selected.track.category : undefined;
-    if (category && color === ROUTE_CATEGORY_CONFIG[category].defaultColor) {
-      return `Color category ${category}`;
+    if (track?.category && value === ROUTE_CATEGORY_CONFIG[track.category].defaultColor) {
+      return { value, label: `Color category ${track.category}` };
     }
-    return color === DEFAULT_TRACK_STYLE.color ? 'Default color' : 'Custom color';
+    return { value, label: value === DEFAULT_TRACK_STYLE.color ? 'Default color' : 'Custom color' };
   }
 
   protected onColorChange(event: Event): void {

@@ -7,10 +7,14 @@ import { GpxService, GpxTrack, GpxWaypoint } from './gpx.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from './route-planner.service';
 
 /**
- * Width of the map covered by the open sidebar, plus some margin: panel width (340px) and
- * inset (12px) from sidebar.css. Used to keep fitted tracks out from under the panel.
+ * Width of the map covered by the open sidebar, plus some margin. From sidebar.css: the panel is
+ * --sidebar-width (340px) wide and starts 12px inside the map (--sidebar-inset 28px minus the 16px
+ * padding of .content). Used to keep fitted tracks out from under the panel.
  */
 export const SIDEBAR_MAP_OVERLAP_PX = 400;
+
+/** Fewer elevations than this in a GPX file are not enough for stats: the terrain model is used instead. */
+const MIN_FILE_ELEVATIONS = 2;
 
 /** The route whose stats are shown in the sidebar */
 export type SidebarRoute =
@@ -26,6 +30,8 @@ export type ElevationState =
   | { status: 'ready'; stats: ElevationStats; source: ElevationSource }
   | { status: 'unavailable' };
 
+type ElevationCacheKey = GpxTrack | PlannedRoute;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -40,7 +46,7 @@ export class SidebarService {
 
   private elevationRequest?: Subscription;
   /** Elevation already looked up per track/route, so selecting it again does not call the API again */
-  private readonly elevationCache = new WeakMap<object, ElevationStats>();
+  private readonly elevationCache = new WeakMap<ElevationCacheKey, ElevationStats>();
 
   constructor() {
     // Show the stats of a newly created route, and drop them once that route is cleared
@@ -76,11 +82,7 @@ export class SidebarService {
   showTrack(track: GpxTrack, waypoints: GpxWaypoint[] = []): void {
     this.select({ kind: 'gpx', track, waypoints });
 
-    const fileElevations = track.segments.flatMap((seg) => seg.elevations ?? []);
-    const fileStats = fileElevations.filter((e) => e !== null).length >= 2
-      ? computeElevationStats(fileElevations)
-      : null;
-
+    const fileStats = this.fileElevationStats(track);
     if (fileStats) {
       this.elevation.set({ status: 'ready', stats: fileStats, source: 'gpx' });
     } else {
@@ -104,10 +106,17 @@ export class SidebarService {
   private select(route: SidebarRoute): void {
     this.elevationRequest?.unsubscribe();
     this.selectedRoute.set(route);
-    this.isOpen.set(true);
+    this.open();
   }
 
-  private loadElevation(key: GpxTrack | PlannedRoute, path: LatLon[]): void {
+  /** Stats from the elevations stored in the GPX file, or null when it has too few of them */
+  private fileElevationStats(track: GpxTrack): ElevationStats | null {
+    const elevations = track.segments.flatMap((seg) => seg.elevations ?? []);
+    const count = elevations.filter((ele) => ele !== null).length;
+    return count >= MIN_FILE_ELEVATIONS ? computeElevationStats(elevations) : null;
+  }
+
+  private loadElevation(key: ElevationCacheKey, path: LatLon[]): void {
     const cached = this.elevationCache.get(key);
     if (cached) {
       this.elevation.set({ status: 'ready', stats: cached, source: 'open-meteo' });
