@@ -1,0 +1,177 @@
+<!-- Icon shown in the top-left corner while the sidebar is closed -->
+<button
+  type="button"
+  class="sidebar-toggle"
+  [class.hidden]="sidebar.isOpen()"
+  (click)="sidebar.open()"
+  aria-controls="app-sidebar-panel"
+  [attr.aria-expanded]="sidebar.isOpen()"
+  aria-label="Open sidebar"
+  title="Open sidebar">
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+       stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="4" y1="6" x2="20" y2="6" />
+    <line x1="4" y1="12" x2="20" y2="12" />
+    <line x1="4" y1="18" x2="20" y2="18" />
+  </svg>
+</button>
+
+<aside
+  id="app-sidebar-panel"
+  class="sidebar-panel"
+  [class.open]="sidebar.isOpen()"
+  [attr.inert]="sidebar.isOpen() ? null : ''"
+  aria-label="Sidebar">
+  <header class="panel-header">
+    <div class="panel-brand">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+        <circle cx="12" cy="10" r="3" />
+      </svg>
+      <span>MyWay</span>
+    </div>
+    <button type="button" class="panel-close" (click)="sidebar.close()" aria-label="Close sidebar" title="Close sidebar">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="11 17 6 12 11 7" />
+        <polyline points="18 17 13 12 18 7" />
+      </svg>
+    </button>
+  </header>
+
+  <div class="panel-body">
+    <!-- Stats of the clicked or created route -->
+    <section class="panel-section" aria-labelledby="sidebar-route-title">
+      <h3 id="sidebar-route-title" class="section-title">Route stats</h3>
+
+      @if (summary(); as route) {
+        <div class="route-heading">
+          <span class="route-caption">{{ route.isGpx ? 'GPX route' : 'Created route' }}</span>
+          <h2 class="route-name">{{ route.name }}</h2>
+        </div>
+
+        @if (route.category || route.difficulty) {
+          <div class="route-badges">
+            @if (route.category) {
+              <span class="category-chip route-cat-{{ route.category }}">{{ route.category }}</span>
+            }
+            @if (route.difficulty) {
+              <span class="difficulty-badge diff-{{ route.difficulty }}">Difficulty: {{ route.difficulty }}</span>
+            }
+          </div>
+        }
+
+        <dl class="stats-grid">
+          @for (stat of stats(); track stat.label) {
+            <div class="stat">
+              <dt class="stat-label">{{ stat.label }}</dt>
+              <dd class="stat-value">
+                @if (stat.value === null) {
+                  <span class="skeleton" aria-hidden="true"></span>
+                  <span class="visually-hidden">Loading</span>
+                } @else {
+                  {{ stat.value }}
+                }
+              </dd>
+            </div>
+          }
+        </dl>
+
+        @let elevation = sidebar.elevation();
+        @if (elevation.status === 'ready' && elevation.source === 'open-meteo') {
+          <p class="stats-note">
+            Elevation estimated from terrain data by
+            <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo.com</a>
+          </p>
+        } @else if (elevation.status === 'unavailable') {
+          <p class="stats-note">Elevation data is not available for this route.</p>
+        }
+
+        @let photoList = photos();
+        @if (photoList.length > 0) {
+          <div class="route-subsection">
+            <h4 class="subsection-title">Photos ({{ photoList.length }})</h4>
+            <div class="photos-grid">
+              @for (photo of photoList; track photo) {
+                <button type="button" class="photo-btn" (click)="previewPhotoUrl.set(photo)" aria-label="Enlarge photo">
+                  <img [src]="photo" alt="Route photo" loading="lazy" />
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Color Info Track -->
+        @let color = routeColor();
+        <div class="route-subsection">
+          <h4 class="subsection-title">Look on the map</h4>
+          <div class="track-style-preview-box">
+            <span
+              class="track-line-swatch"
+              [style.background-color]="color"
+              [style.height.px]="trackStyle().weight"></span>
+            <div class="track-style-info">
+              <span class="track-style-label">{{ colorLabel(color) }}</span>
+              <small class="track-style-hint">{{ trackStyle().weight }} px · customizable from the button below</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Route (SCRUM-55): track color and thickness, formerly Edit > Track design -->
+        <button
+          type="button"
+          class="btn-primary"
+          [class.active]="isCustomizing()"
+          aria-controls="route-customize-panel"
+          [attr.aria-expanded]="isCustomizing()"
+          (click)="isCustomizing.set(!isCustomizing())">
+          Custom Route
+        </button>
+
+        @if (isCustomizing()) {
+          <div id="route-customize-panel" class="customize-panel">
+            <label class="customize-row">
+              <span>Color</span>
+              <input type="color" class="color-input" [value]="color" (input)="onColorChange($event)" />
+            </label>
+            <label class="customize-row stacked">
+              <span>Thickness: {{ trackStyle().weight }} px</span>
+              <input
+                type="range"
+                class="weight-input"
+                [min]="minWeight"
+                [max]="maxWeight"
+                step="1"
+                [value]="trackStyle().weight"
+                (input)="onWeightChange($event)" />
+            </label>
+            <small class="customize-hint">Applies to all the routes on the map.</small>
+          </div>
+        }
+      } @else {
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="6" cy="19" r="3" />
+            <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
+            <circle cx="18" cy="5" r="3" />
+          </svg>
+          <p>Click on a route on the map, or create a new one, to see its stats here.</p>
+        </div>
+      }
+    </section>
+  </div>
+</aside>
+
+<!-- Enlarged route photo -->
+@if (previewPhotoUrl(); as photoUrl) {
+  <div class="photo-lightbox-overlay" (click)="previewPhotoUrl.set(null)">
+    <div class="photo-lightbox-modal" (click)="$event.stopPropagation()">
+      <button type="button" class="btn-close-lightbox" (click)="previewPhotoUrl.set(null)" aria-label="Close">
+        &times;
+      </button>
+      <img [src]="photoUrl" alt="Enlarged route photo" class="photo-lightbox-img" />
+    </div>
+  </div>
+}

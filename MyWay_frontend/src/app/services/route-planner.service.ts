@@ -24,7 +24,7 @@ export const OSRM_ROUTE_URL = 'https://routing.openstreetmap.de/routed-foot/rout
 /** Points farther than this from a road or path fail with NoSegment instead of being snapped. */
 const MAX_SNAP_DISTANCE_METERS = 1000;
 
-const ROUTE_NAME = 'MyWay Route';
+export const ROUTE_NAME = 'MyWay Route';
 
 interface OsrmResponse {
   code: string;

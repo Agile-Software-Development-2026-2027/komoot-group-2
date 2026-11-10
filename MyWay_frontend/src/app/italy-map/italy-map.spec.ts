@@ -6,6 +6,8 @@ import * as L from 'leaflet';
 
 import { ItalyMap } from './italy-map';
 import { RoutePlannerService } from '../services/route-planner.service';
+import { SidebarService } from '../services/sidebar.service';
+import { TrackStyleHandler } from '../services/track-style-handler.service';
 
 describe('ItalyMap', () => {
   let component: ItalyMap;
@@ -32,6 +34,49 @@ describe('ItalyMap', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should keep the top-left corner free for the sidebar and put the map controls bottom-right', () => {
+    const bottomRight = host.querySelector('.leaflet-bottom.leaflet-right')!;
+
+    expect(host.querySelector('.leaflet-top.leaflet-left')?.children).toHaveLength(0);
+    expect(bottomRight.querySelector('.leaflet-control-zoom')).toBeTruthy();
+    expect(bottomRight.querySelector('a[title="Plan a route"]')).toBeTruthy();
+    expect(bottomRight.querySelector('a[title="Map style"]')).toBeTruthy();
+  });
+
+  it('should restyle only the visible track lines, and only with what changed', () => {
+    const trackStyle = TestBed.inject(TrackStyleHandler);
+    const track = { category: 'cycling' as const, segments: [{ points: [[45, 7], [45.2, 7.2]] as [number, number][] }] };
+    component.renderGpx({ fileName: 'ride.gpx', waypoints: [], tracks: [track], allCoordinates: [[45, 7], [45.2, 7.2]] });
+    const [line, clickArea] = (component as unknown as { gpxLayerGroup: L.FeatureGroup }).gpxLayerGroup
+      .getLayers() as L.Polyline[];
+
+    trackStyle.setWeight(9);
+    expect(line.options).toMatchObject({ weight: 9, color: '#2563eb' }); // keeps the cycling color
+    expect(clickArea.options.weight).toBe(22); // stays easy to click
+
+    trackStyle.setColor('#ff00ff');
+    expect(line.options).toMatchObject({ weight: 9, color: '#ff00ff' });
+    expect(track).toMatchObject({ color: '#ff00ff' });
+  });
+
+  it('should show the stats of a clicked GPX track in the sidebar', () => {
+    const sidebar = TestBed.inject(SidebarService);
+    const showTrackSpy = vi.spyOn(sidebar, 'showTrack').mockImplementation(() => {});
+    const waypoints = [{ lat: 45.1, lon: 7.1, name: 'Fountain' }];
+    component.renderGpx({
+      fileName: 'loop.gpx',
+      waypoints,
+      tracks: [{ name: 'Loop', segments: [{ points: [[45, 7], [45.2, 7.2]] }] }],
+      allCoordinates: [[45, 7], [45.2, 7.2]],
+    });
+
+    const gpxLayers = (component as unknown as { gpxLayerGroup: L.FeatureGroup }).gpxLayerGroup.getLayers();
+    const trackLine = gpxLayers.find((layer): layer is L.Polyline => layer instanceof L.Polyline)!;
+    trackLine.fire('click', { latlng: L.latLng(45.1, 7.1) });
+
+    expect(showTrackSpy).toHaveBeenCalledWith(expect.objectContaining({ name: 'Loop', distanceMeters: expect.any(Number) }), waypoints);
   });
 
   it('should toggle route planning mode with the plan button', async () => {

@@ -1,7 +1,6 @@
 import { Component, ElementRef, HostListener, ViewChild, inject } from '@angular/core';
 import { GpxExportService } from '../services/gpx-export.service';
 import { GpxService } from '../services/gpx.service';
-import { TrackStyleHandler } from '../services/track-style-handler.service';
 @Component({
   selector: 'app-menu-bar',
   imports: [],
@@ -14,24 +13,17 @@ export class MenuBar {
   private readonly gpxService = inject(GpxService);
   private readonly gpxExportService = inject(GpxExportService);
   private readonly elementRef = inject(ElementRef);
-  private readonly trackStyleHandler= inject(TrackStyleHandler);
 
   public isFileMenuOpen = false;
-  public isEditMenuOpen = false;
-  public isTrackDesignOpen = false;
   public isLoginOpen = false;
   public isSignInOpen = false;
   public registerPassword = '';
   readonly hasRoute = this.gpxExportService.hasRoute;
 
-  public color = this.trackStyleHandler.getCurrentStyle().color;
-  public weight = this.trackStyleHandler.getCurrentStyle().weight;
-
   /** Toggle the File dropdown menu */
   public toggleFileMenu(event: MouseEvent): void {
     event.stopPropagation();
     this.closeLoginPopup();
-    this.isEditMenuOpen = false;
     this.isFileMenuOpen = !this.isFileMenuOpen;
   }
 
@@ -39,30 +31,11 @@ export class MenuBar {
   public closeFileMenu(): void {
     this.isFileMenuOpen = false;
   }
-  // Toggle the Edit dropdown menu
-  public toggleEditMenu(event: MouseEvent): void {
-    event.stopPropagation();
-    this.closeLoginPopup();
-    this.isFileMenuOpen = false;
-    this.isTrackDesignOpen = false;
-    this.isEditMenuOpen = !this.isEditMenuOpen;
-  }
-  //Close the Edit dropdown menu
-  public closeEditMenu(): void {
-    this.isEditMenuOpen = false;
-    this.isTrackDesignOpen = false;
-  }
-  //Opne-close the Track submenu
-  public toggleTrackDesign(): void {
-    this.isTrackDesignOpen = !this.isTrackDesignOpen;
-  }
 
   /** Toggle the user login popup */
   public toggleLoginPopup(event: MouseEvent): void {
     event.stopPropagation();
     this.isFileMenuOpen = false;
-    this.isEditMenuOpen = false;
-    this.isTrackDesignOpen = false;
     if (this.isLoginOpen || this.isSignInOpen) {
       this.closeLoginPopup();
     } else {
@@ -143,23 +116,12 @@ export class MenuBar {
     this.closeFileMenu();
     this.gpxExportService.downloadGpx();
   }
-  // Save the color chosen by the user
-  public onColorChange(event:Event): void{
-    this.color=(event.target as HTMLInputElement).value;
-    this.trackStyleHandler.setColor(this.color);
-  }
-  //Save the thickness chosen by the user
-  public onWeightChange(event:Event) : void{
-    this.weight= Number((event.target as HTMLInputElement).value);
-    this.trackStyleHandler.setWeight(this.weight);
-  }
 
   /** Close menus and popups when clicking outside the component */
   @HostListener('document:click', ['$event'])
   public onDocumentClick(event: MouseEvent): void {
     if (!this.elementRef.nativeElement.contains(event.target as Node)) {
       this.closeFileMenu();
-      this.closeEditMenu();
       this.closeLoginPopup();
     }
   }
@@ -168,7 +130,6 @@ export class MenuBar {
   @HostListener('document:keydown.escape')
   public onEscape(): void {
     this.closeFileMenu();
-    this.closeEditMenu();
     this.closeLoginPopup();
   }
 }
