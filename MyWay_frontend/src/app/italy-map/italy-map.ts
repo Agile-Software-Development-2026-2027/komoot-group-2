@@ -10,11 +10,13 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Subscription, pairwise } from 'rxjs';
 import * as L from 'leaflet';
 import { GpxService, ParsedGpx, GpxWaypoint, WaypointCategory, GpxTrack, RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from '../services/route-planner.service';
+import { SIDEBAR_MAP_OVERLAP_PX, SidebarService } from '../services/sidebar.service';
+import { formatDistance, formatDuration } from '../utils/route-stats';
 
 L.Marker.prototype.options.icon = L.icon({
   iconUrl: 'leaflet/marker-icon.png',
@@ -147,17 +149,6 @@ function createWaypointIcon(wp: GpxWaypoint): L.DivIcon {
   });
 }
 
-function formatDistance(meters: number): string {
-  return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
-}
-
-function formatDuration(seconds: number): string {
-  const totalMinutes = Math.max(1, Math.round(seconds / 60));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
-}
-
 interface MapStyle {
   id: string;
   label: string;
@@ -213,6 +204,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private readonly gpxService = inject(GpxService);
   private readonly trackStyleHandler= inject(TrackStyleHandler);
   private readonly injector = inject(Injector);
+  private readonly sidebar = inject(SidebarService);
   protected readonly routePlanner = inject(RoutePlannerService);
 
   /** When active, clicks on the map set the start and destination of a route */
@@ -238,6 +230,8 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private routeSubscription?: Subscription;
 
   private gpxLayerGroup?: L.FeatureGroup;
+  /** Visible lines of each rendered GPX track (without the invisible click areas) */
+  private readonly trackLines = new Map<GpxTrack, L.Polyline[]>();
   private gpxSubscription?: Subscription;
   private styleSubscription?: Subscription;
 
@@ -252,6 +246,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       maxZoom: 18,
       maxBounds: this.italyBounds.pad(0.5),
       maxBoundsViscosity: 0.8,
+      zoomControl: false, // added below in the bottom-right corner, the top-left one is taken by the sidebar
     });
 
     // Default standard
@@ -260,13 +255,14 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     // Zooming on Italy when open the website
     this.map.fitBounds(this.italyBounds, { padding: [10, 10] });
 
+    // Bottom corners stack upwards: added first = lowest, so the zoom buttons end up above the tools
     this.addToolsControl();
+    L.control.zoom({ position: 'bottomright' }).addTo(this.map);
 
     // When click on the map the Map Style list will close; in planning mode it sets a route point
     this.map.on('click', (e: L.LeafletMouseEvent) => {
       this.toggleStylePanel(false);
       this.closeWaypointDetails();
-      this.closeTrackDetails();
       if (this.planningMode()) {
         this.routePlanner.selectPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
       }
@@ -290,10 +286,18 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         this.renderGpx(gpx);
       }
     });
-        // Update the GPX track when the user changes color or thickness
-    this.styleSubscription = this.trackStyleHandler.style$.subscribe((style) => {
-      this.gpxLayerGroup?.setStyle({ color: style.color, weight: style.weight });
-      this.routeLayer?.setStyle({ color: style.color, weight: style.weight });
+    // Update the tracks when the user changes color or thickness ("Custom Route" in the sidebar).
+    // Only what changed is applied, so a new thickness keeps each GPX track's category color.
+    this.styleSubscription = this.trackStyleHandler.style$.pipe(pairwise()).subscribe(([previous, style]) => {
+      const changes: L.PathOptions = {};
+      if (style.color !== previous.color) changes.color = style.color;
+      if (style.weight !== previous.weight) changes.weight = style.weight;
+
+      for (const [track, lines] of this.trackLines) {
+        if (changes.color) track.color = changes.color; // keep the sidebar in sync with the map
+        lines.forEach((line) => line.setStyle(changes)); // not the wide invisible click areas
+      }
+      this.routeLayer?.setStyle(changes);
     });
   }
 
@@ -316,8 +320,14 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       const { color, weight } = this.trackStyleHandler.getCurrentStyle();
       this.routeLayer = L.polyline(
         route.points.map((p): L.LatLngTuple => [p.lat, p.lon]),
-        { color, weight, opacity: 0.85, lineJoin: 'round', interactive: false },
+        { color, weight, opacity: 0.85, lineJoin: 'round' },
       ).addTo(this.plannedRouteGroup);
+      // Outside planning mode a click shows the route stats; in planning mode it reaches the map and sets a point
+      this.routeLayer.on('click', (e: L.LeafletMouseEvent) => {
+        if (this.planningMode()) return;
+        L.DomEvent.stopPropagation(e);
+        this.sidebar.showPlannedRoute(route);
+      });
       this.map.attributionControl.addAttribution(ROUTING_ATTRIBUTION);
     }
     if (start) {
@@ -339,6 +349,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     } else {
       this.gpxLayerGroup.clearLayers();
     }
+    this.trackLines.clear();
 
     // 1. Draw tracks and routes
     const{weight}=this.trackStyleHandler.getCurrentStyle();
@@ -351,6 +362,8 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       }
       if (!track.difficulty) track.difficulty = calculateDifficulty(track.distanceMeters);
 
+      const lines: L.Polyline[] = [];
+      this.trackLines.set(track, lines);
       for (const seg of track.segments) {
         if (seg.points.length > 0) {
           const polyline = L.polyline(seg.points, {
@@ -367,7 +380,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
           });
           const onTrackClick = (e: L.LeafletMouseEvent) => {
             L.DomEvent.stopPropagation(e);
-            this.openTrackDetails(track);
+            this.sidebar.showTrack(track, data.waypoints);
           };
 
           polyline.on('click', onTrackClick);
@@ -375,6 +388,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
           polyline.addTo(this.gpxLayerGroup);
           hitPolyline.addTo(this.gpxLayerGroup);
+          lines.push(polyline);
         }
       }
     }
@@ -395,7 +409,16 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     if (bounds.isValid()) {
       // Clear strict bounds so tracks outside Italy can be viewed
       this.map.setMaxBounds(undefined);
-      this.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+      const padding = 40;
+      // Keep the track out from under the sidebar when it is open on the left (but use at most half the map)
+      const leftPadding = this.sidebar.isOpen()
+        ? Math.min(SIDEBAR_MAP_OVERLAP_PX, this.map.getSize().x / 2)
+        : padding;
+      this.map.fitBounds(bounds, {
+        paddingTopLeft: [leftPadding, padding],
+        paddingBottomRight: [padding, padding],
+        maxZoom: 16,
+      });
     }
   }
 
@@ -403,7 +426,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   public selectedWaypoint = signal<GpxWaypoint | null>(null);
   public openWaypointDetails(wp: GpxWaypoint): void {
     this.selectedWaypoint.set(wp);
-    this.selectedTrack.set(null);
   }
   public closeWaypointDetails(): void {
     this.selectedWaypoint.set(null);
@@ -445,17 +467,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     } else {
       this.editCategories.set([...current, cat]);
     }
-  }
-
-  // POP-UP Showing Route info
-  public readonly formatDuration = formatDuration;
-  public selectedTrack = signal<GpxTrack | null>(null);
-  public openTrackDetails(track: GpxTrack): void {
-    this.selectedWaypoint.set(null);
-    this.selectedTrack.set(track);
-  }
-  public closeTrackDetails(): void {
-    this.selectedTrack.set(null);
   }
 
   public onDescInput(event: Event): void {
@@ -546,7 +557,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
   /** Pen and Map Style icons */
   private addToolsControl(): void {
-    const tools = new L.Control({ position: 'topleft' });
+    const tools = new L.Control({ position: 'bottomright' });
 
     tools.onAdd = () => {
       const container = L.DomUtil.create('div', 'map-tools');

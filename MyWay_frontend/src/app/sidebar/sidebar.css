@@ -1,0 +1,480 @@
+/*
+ * The host is not positioned on purpose: the toggle and the panel are placed relative to the
+ * map area (.content), and the photo lightbox stays fixed to the viewport above everything.
+ * Layering: Leaflet controls (1000) < sidebar (1100) < menu bar dropdowns (1200).
+ */
+:host {
+  /* Keep in sync with SIDEBAR_MAP_OVERLAP_PX in sidebar.service.ts */
+  --sidebar-inset: 28px;
+  --sidebar-width: 340px;
+  --sidebar-z-index: 1100;
+
+  display: block;
+}
+
+/* Toggle icon, top-left corner of the map while the sidebar is closed */
+.sidebar-toggle {
+  position: absolute;
+  top: var(--sidebar-inset);
+  left: var(--sidebar-inset);
+  z-index: var(--sidebar-z-index);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1f2a44;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.25s ease, background 0.15s ease, color 0.15s ease,
+    visibility 0s;
+}
+
+.sidebar-toggle:hover,
+.sidebar-toggle:focus-visible {
+  background: #2563eb;
+  color: #ffffff;
+  outline: none;
+}
+
+.sidebar-toggle.hidden {
+  opacity: 0;
+  transform: scale(0.8);
+  visibility: hidden;
+  transition: opacity 0.15s ease, transform 0.2s ease, visibility 0s linear 0.2s;
+}
+
+/* Panel: slides in from the left */
+.sidebar-panel {
+  position: absolute;
+  top: var(--sidebar-inset);
+  left: var(--sidebar-inset);
+  bottom: var(--sidebar-inset);
+  z-index: var(--sidebar-z-index);
+  width: var(--sidebar-width);
+  max-width: calc(100% - 2 * var(--sidebar-inset));
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15), 0 2px 6px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+  transform: translateX(calc(-100% - 40px));
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease,
+    visibility 0s linear 0.35s;
+}
+
+.sidebar-panel.open {
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, visibility 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-toggle,
+  .sidebar-toggle.hidden,
+  .sidebar-panel,
+  .sidebar-panel.open {
+    transition: none;
+  }
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.panel-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #1f2a44;
+}
+
+.panel-brand svg {
+  color: #0284c7;
+}
+
+.panel-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.panel-close:hover,
+.panel-close:focus-visible {
+  background: #e2e8f0;
+  color: #0f172a;
+  outline: none;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.section-title {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+/* Route stats */
+.route-caption {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.route-name {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.route-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.category-chip,
+.difficulty-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.category-chip.route-cat-hiking  { background: #d1fae5; color: #065f46; }
+.category-chip.route-cat-cycling { background: #dbeafe; color: #1e40af; }
+.category-chip.route-cat-running { background: #ffedd5; color: #9a3412; }
+.category-chip.route-cat-walking { background: #ede9fe; color: #5b21b6; }
+
+.difficulty-badge.diff-easy         { background: #dcfce7; color: #166534; }
+.difficulty-badge.diff-intermediate { background: #fef3c7; color: #92400e; }
+.difficulty-badge.diff-hard         { background: #fee2e2; color: #991b1b; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.stat {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.stat-value {
+  margin: 2px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.skeleton {
+  display: inline-block;
+  width: 60px;
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.stats-note {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.stats-note a {
+  color: #64748b;
+}
+
+.route-subsection {
+  margin-top: 18px;
+}
+
+.subsection-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.photo-btn {
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f1f5f9;
+  cursor: pointer;
+}
+
+.photo-btn img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.photo-btn:hover img,
+.photo-btn:focus-visible img {
+  transform: scale(1.06);
+}
+
+.track-style-preview-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.track-line-swatch {
+  flex-shrink: 0;
+  width: 38px;
+  height: 6px;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.track-style-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.track-style-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  text-transform: capitalize;
+}
+
+.track-style-hint {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.btn-primary {
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  transition: background 0.15s ease;
+}
+
+.btn-primary:hover,
+.btn-primary.active {
+  background: #1d4ed8;
+}
+
+/* Custom Route: color and thickness */
+.customize-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.customize-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.customize-row.stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.color-input {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: 0 0 0 1px #cbd5e1;
+  cursor: pointer;
+}
+
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.color-input::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+.weight-input {
+  width: 100%;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.customize-hint {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 16px;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 12px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* Photo lightbox (same look as the waypoint one) */
+.photo-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(5px);
+}
+
+.photo-lightbox-modal {
+  position: relative;
+}
+
+.photo-lightbox-img {
+  display: block;
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+}
+
+.btn-close-lightbox {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}

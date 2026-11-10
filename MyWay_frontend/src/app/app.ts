@@ -2,11 +2,12 @@ import { Component, HostListener, inject, signal } from '@angular/core';
 import { AsyncPipe } from '@angular/common';
 import { MenuBar } from './menu-bar/menu-bar';
 import { ItalyMap } from './italy-map/italy-map';
+import { Sidebar } from './sidebar/sidebar';
 import { GpxService } from './services/gpx.service';
 
 @Component({
   selector: 'app-root',
-  imports: [ItalyMap, MenuBar, AsyncPipe],
+  imports: [ItalyMap, MenuBar, Sidebar, AsyncPipe],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })

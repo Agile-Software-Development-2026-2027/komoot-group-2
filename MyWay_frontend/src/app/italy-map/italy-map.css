@@ -80,17 +80,30 @@
 
 :host ::ng-deep .map-tools {
   position: relative;
-  margin-top: 10px;
 }
 
 :host ::ng-deep .map-tool-btn {
   display: flex !important;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
   color: #333;
   cursor: pointer;
+}
+
+/* Bigger zoom and tool buttons in the bottom-right corner (Leaflet default: 26-30px) */
+:host ::ng-deep .leaflet-right .leaflet-bar a {
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+}
+
+:host ::ng-deep .leaflet-right .leaflet-control-zoom a {
+  font-size: 26px;
+}
+
+:host ::ng-deep .leaflet-right .map-tool-btn svg {
+  width: 22px;
+  height: 22px;
 }
 
 :host ::ng-deep .map-tool-btn:hover {
@@ -98,12 +111,12 @@
   color: #1f2a44;
 }
 
-/*  Map Style List  */
+/*  Map Style List (opens to the left of the bottom-right tools)  */
 :host ::ng-deep .style-panel {
   display: none;
   position: absolute;
-  top: 32px;
-  left: 40px;
+  bottom: 0;
+  right: calc(100% + 8px);
   min-width: 160px;
   padding: 6px;
   background: #fff;
@@ -674,62 +687,6 @@
   background: #1d4ed8;
 }
 
-.category-chip.route-cat-hiking  { background: #d1fae5; color: #065f46; }
-.category-chip.route-cat-cycling { background: #dbeafe; color: #1e40af; }
-.category-chip.route-cat-running { background: #ffedd5; color: #9a3412; }
-.category-chip.route-cat-walking { background: #ede9fe; color: #5b21b6; }
-
-.category-chip[class*="route-cat-"] {
-  text-transform: uppercase;
-}
-
-.difficulty-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 20px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-.difficulty-badge.diff-easy         { background: #dcfce7; color: #166534; }
-.difficulty-badge.diff-intermediate { background: #fef3c7; color: #92400e; }
-.difficulty-badge.diff-hard         { background: #fee2e2; color: #991b1b; }
-
 :host ::ng-deep .leaflet-interactive {
   cursor: pointer !important;
-}
-
-.track-style-preview-box {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 14px;
-}
-
-.track-line-swatch {
-  width: 38px;
-  height: 6px;
-  border-radius: 3px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  flex-shrink: 0;
-}
-
-.track-style-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.track-style-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1e293b;
-  text-transform: capitalize;
-}
-
-.track-style-hint {
-  font-size: 11px;
-  color: #64748b;
 }

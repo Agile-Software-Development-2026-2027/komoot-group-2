@@ -18,6 +18,8 @@ export interface GpxWaypoint {
 
 export interface GpxTrackSegment {
   points: [number, number][]; // [lat, lon]
+  /** Elevation in metres of each point (same order as `points`), null where missing. Undefined if no point has one. */
+  elevations?: (number | null)[];
 }
 
 export interface GpxTrack {
@@ -288,23 +290,9 @@ export class GpxService {
       const segments: GpxTrackSegment[] = [];
 
       for (const seg of segElements) {
-        const ptElements = this.getElementsByTag(seg, 'trkpt');
-        const points: [number, number][] = [];
-
-        for (const pt of ptElements) {
-          const latStr = pt.getAttribute('lat');
-          const lonStr = pt.getAttribute('lon');
-          if (!latStr || !lonStr) continue;
-
-          const lat = parseFloat(latStr);
-          const lon = parseFloat(lonStr);
-          if (!isNaN(lat) && !isNaN(lon)) {
-            points.push([lat, lon]);
-          }
-        }
-
-        if (points.length > 0) {
-          segments.push({ points });
+        const segment = this.extractSegment(this.getElementsByTag(seg, 'trkpt'));
+        if (segment) {
+          segments.push(segment);
         }
       }
 
@@ -319,30 +307,36 @@ export class GpxService {
       const nameEl = this.getFirstElementByTag(rte, 'name');
       const routeName = nameEl?.textContent?.trim() || undefined;
 
-      const ptElements = this.getElementsByTag(rte, 'rtept');
-      const points: [number, number][] = [];
-
-      for (const pt of ptElements) {
-        const latStr = pt.getAttribute('lat');
-        const lonStr = pt.getAttribute('lon');
-        if (!latStr || !lonStr) continue;
-
-        const lat = parseFloat(latStr);
-        const lon = parseFloat(lonStr);
-        if (!isNaN(lat) && !isNaN(lon)) {
-          points.push([lat, lon]);
-        }
-      }
-
-      if (points.length > 0) {
+      const segment = this.extractSegment(this.getElementsByTag(rte, 'rtept'));
+      if (segment) {
         tracks.push({
           name: routeName,
-          segments: [{ points }],
+          segments: [segment],
         });
       }
     }
 
     return tracks;
+  }
+
+  /** Reads the coordinates (and elevations, when present) of <trkpt>/<rtept> elements. */
+  private extractSegment(ptElements: Element[]): GpxTrackSegment | null {
+    const points: [number, number][] = [];
+    const elevations: (number | null)[] = [];
+
+    for (const pt of ptElements) {
+      // parseFloat('') is NaN, so missing attributes/elements are skipped like invalid numbers
+      const lat = parseFloat(pt.getAttribute('lat') ?? '');
+      const lon = parseFloat(pt.getAttribute('lon') ?? '');
+      if (isNaN(lat) || isNaN(lon)) continue;
+
+      const ele = parseFloat(this.getFirstElementByTag(pt, 'ele')?.textContent ?? '');
+      points.push([lat, lon]);
+      elevations.push(isNaN(ele) ? null : ele);
+    }
+
+    if (points.length === 0) return null;
+    return elevations.some((ele) => ele !== null) ? { points, elevations } : { points };
   }
 
   private getElementsByTag(parent: Document | Element, tagName: string): Element[] {
