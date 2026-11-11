@@ -37,7 +37,8 @@ describe('MenuBar', () => {
     const dropdown = host.querySelector('.dropdown-menu');
     expect(dropdown).toBeTruthy();
 
-    const exportItem = dropdown?.querySelector<HTMLButtonElement>('.dropdown-item');
+    const exportItem = Array.from(dropdown?.querySelectorAll<HTMLButtonElement>('.dropdown-item') ?? [])
+      .find((el) => el.textContent?.includes('Export GPX'));
     expect(exportItem).toBeTruthy();
     expect(exportItem?.textContent).toContain('Export GPX');
   });
@@ -51,7 +52,8 @@ describe('MenuBar', () => {
     fileBtn.click();
     fixture.detectChanges();
 
-    const exportItem = host.querySelector<HTMLButtonElement>('.dropdown-item')!;
+    const exportItem = Array.from(host.querySelectorAll<HTMLButtonElement>('.dropdown-item'))
+      .find((el) => el.textContent?.includes('Export GPX'))!;
     exportItem.click();
     fixture.detectChanges();
 
