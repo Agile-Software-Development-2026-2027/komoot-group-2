@@ -133,31 +133,37 @@ describe('Sidebar', () => {
     expect(host.querySelector('.photos-grid')).toBeNull();
   });
 
-  it('should customize the color and thickness of the routes with "Custom Route"', async () => {
+  it('should customize the color and thickness of the routes with "Custom Route" modal', async () => {
     const trackStyle = TestBed.inject(TrackStyleHandler);
-    sidebar.showTrack({ ...GPX_TRACK }, []);
+    const track: GpxTrack = { ...GPX_TRACK };
+    sidebar.showTrack(track, []);
     await fixture.whenStable();
 
     const swatch = host.querySelector<HTMLElement>('.track-line-swatch')!;
     expect(host.querySelector('.track-style-label')?.textContent).toContain('Color category hiking');
     expect(swatch.style.backgroundColor).toBe('rgb(16, 185, 129)'); // #10b981
-    expect(host.querySelector('.customize-panel')).toBeNull();
+    expect(host.querySelector('.edit-modal-card')).toBeNull();
 
     host.querySelector<HTMLButtonElement>('.btn-primary')!.click();
     await fixture.whenStable();
 
-    const colorInput = host.querySelector<HTMLInputElement>('.customize-panel input[type=color]')!;
-    const weightInput = host.querySelector<HTMLInputElement>('.customize-panel input[type=range]')!;
+    expect(host.querySelector('.edit-modal-card')).toBeTruthy();
+    const colorInput = host.querySelector<HTMLInputElement>('.edit-modal-card input[type=color]')!;
+    const weightInput = host.querySelector<HTMLInputElement>('.edit-modal-card input[type=range]')!;
     expect(colorInput.value).toBe('#10b981'); // the route's current color, not the default red
 
     weightInput.value = '8';
     weightInput.dispatchEvent(new Event('input'));
     colorInput.value = '#123456';
     colorInput.dispatchEvent(new Event('input'));
+
+    host.querySelector<HTMLButtonElement>('.btn-modal-save')!.click();
     await fixture.whenStable();
 
-    expect(trackStyle.getCurrentStyle()).toEqual({ color: '#123456', weight: 8 });
-    expect(host.querySelector('.customize-panel')?.textContent).toContain('Thickness: 8 px');
+    expect(host.querySelector('.edit-modal-card')).toBeNull();
+    expect(track.color).toBe('#123456');
+    expect(trackStyle.getCurrentStyle().weight).toBe(8);
     expect(swatch.style.height).toBe('8px');
+    expect(swatch.style.backgroundColor).toBe('rgb(18, 52, 86)');
   });
 });
