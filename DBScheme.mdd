@@ -1,0 +1,55 @@
+erDiagram
+    USER {
+        VARCHAR_255 email PK
+        VARCHAR_50 username
+        VARCHAR_255 password
+    }
+
+    ROUTE {
+        INT id PK
+        ENUM category
+        VARCHAR_255 publisher FK
+        VARCHAR_255 picture_path
+        ENUM difficulty
+        INT estimated_time_in_minutes
+        FLOAT length_in_meters
+        BOOLEAN is_active
+    }
+
+    WAYPOINT {
+        INT id PK
+        ENUM category
+        VARCHAR_255 pictures_paths FK
+        TEXT description
+        VARCHAR_255 publisher FK
+        BOOLEAN is_active
+        FLOAT latitude
+        FLOAT longitude
+    }
+
+    WAYPOINT_PICTURES {
+        INT waypoint PK, FK
+        VARCHAR_255 picture_path PK
+    }
+
+    REPORT_ROUTE {
+        INT route_id PK, FK
+        VARCHAR_255 reporter_email PK, FK
+    }
+
+    REPORT_WAYPOINT {
+        INT waypoint_id PK, FK
+        VARCHAR_255 reporter_email PK, FK
+    }
+
+    %% Relationships
+    USER ||--o{ ROUTE : "publishes"
+    USER ||--o{ WAYPOINT : "publishes"
+        
+    WAYPOINT ||--o{ WAYPOINT_PICTURES : "references_pictures"
+
+    USER ||--o{ REPORT_ROUTE : "reports_route"
+    ROUTE ||--o{ REPORT_ROUTE : "is_reported_in"
+
+    USER ||--o{ REPORT_WAYPOINT : "reports_waypoint"
+    WAYPOINT ||--o{ REPORT_WAYPOINT : "is_reported_in"
