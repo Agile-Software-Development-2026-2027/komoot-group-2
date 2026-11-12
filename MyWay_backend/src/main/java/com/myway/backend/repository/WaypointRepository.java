@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface WaypointRepository extends JpaRepository<Waypoint, Integer> {
 
-    List<Waypoint> findByActiveTrue();
+    List<Waypoint> findByIsPublicTrue();
 
     List<Waypoint> findByPublisherEmail(String email);
 }

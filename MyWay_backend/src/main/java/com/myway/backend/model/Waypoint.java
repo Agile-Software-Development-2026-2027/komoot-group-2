@@ -48,8 +48,8 @@ public class Waypoint {
     private User publisher;
 
     @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private boolean active = true;
+    @Column(name = "is_public", nullable = false)
+    private boolean isPublic = false;
 
     @Column(nullable = false)
     private Double latitude;

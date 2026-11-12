@@ -32,6 +32,13 @@ public class Route {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(nullable = false, length = 255)
+    private String name;
+
+    /** Path of the .gpx file holding the track; the file itself lives on disk at this path. */
+    @Column(name = "gpx_path", nullable = false, length = 255)
+    private String gpxPath;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private RouteCategory category;
@@ -54,6 +61,6 @@ public class Route {
     private Double lengthInMeters;
 
     @Builder.Default
-    @Column(name = "is_active", nullable = false)
-    private boolean active = true;
+    @Column(name = "is_public", nullable = false)
+    private boolean isPublic = false;
 }

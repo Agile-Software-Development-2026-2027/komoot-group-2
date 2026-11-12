@@ -1,11 +1,10 @@
 package com.myway.backend.model.enums;
 
-/** Stored as VARCHAR in waypoint.category. Values are a first proposal: change freely (no migration needed to add values). */
+/** Stored as VARCHAR in waypoint.category. */
 public enum WaypointCategory {
-    VIEWPOINT,
-    WATER_SOURCE,
+    FOUNTAIN,
     SHELTER,
-    PARKING,
-    DANGER,
-    OTHER
+    PANORAMIC_VIEW,
+    SANCTUARY,
+    PEAK
 }

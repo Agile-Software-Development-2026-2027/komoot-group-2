@@ -4,6 +4,5 @@ package com.myway.backend.model.enums;
 public enum Difficulty {
     EASY,
     MEDIUM,
-    HARD,
-    EXPERT
+    HARD
 }

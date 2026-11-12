@@ -35,9 +35,11 @@ class RepositoryTests {
     @Test
     void savesAndReadsEveryTable() {
         User alice = user("alice@example.com", "alice");
-        User bob = user("bob@example.com", "bob");
+        User bob = user("bob@example.com", "alice"); // usernames are not unique
 
         Route route = routes.save(Route.builder()
+                .name("Monte Bondone loop")
+                .gpxPath("uploads/gpx/monte-bondone.gpx")
                 .category(RouteCategory.HIKING)
                 .difficulty(Difficulty.MEDIUM)
                 .publisher(alice)
@@ -46,7 +48,7 @@ class RepositoryTests {
                 .build());
 
         Waypoint waypoint = waypoints.save(Waypoint.builder()
-                .category(WaypointCategory.VIEWPOINT)
+                .category(WaypointCategory.PANORAMIC_VIEW)
                 .description("Nice view")
                 .publisher(alice)
                 .latitude(46.0)
@@ -59,8 +61,11 @@ class RepositoryTests {
         em.flush();
         em.clear();
 
-        assertThat(users.findByUsername("alice")).isPresent();
-        assertThat(routes.findByActiveTrue()).extracting(Route::getId).containsExactly(route.getId());
+        Route saved = routes.findById(route.getId()).orElseThrow();
+        assertThat(saved.getName()).isEqualTo("Monte Bondone loop");
+        assertThat(saved.getGpxPath()).isEqualTo("uploads/gpx/monte-bondone.gpx");
+        assertThat(saved.isPublic()).isFalse(); // private by default
+        assertThat(routes.findByIsPublicTrue()).isEmpty();
         assertThat(routes.findByPublisherEmail("alice@example.com")).hasSize(1);
         assertThat(waypoints.findById(waypoint.getId()).orElseThrow().getPicturePaths())
                 .containsExactlyInAnyOrder("a.jpg", "b.jpg");

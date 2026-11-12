@@ -23,7 +23,7 @@ public class User {
     @Column(length = 255)
     private String email;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, length = 50)
     private String username;
 
     /** BCrypt hash (see PasswordUtil), never the plain password. */
