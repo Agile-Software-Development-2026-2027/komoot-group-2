@@ -10,7 +10,7 @@ import com.myway.backend.service.exceptions.EmailAlreadyUsedException;
 import com.myway.backend.service.exceptions.InvalidCredentialsException;
 import com.myway.backend.service.exceptions.UserNotFoundException;
 import com.myway.backend.util.JWTService;
-import com.myway.backend.util.PasswordUtil;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -22,7 +22,7 @@ import java.util.Locale;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
-    private final PasswordUtil passwordUtil;
+    private final PasswordEncoder passwordEncoder;
     private final JWTService jwtService;
 
     @Override
@@ -36,7 +36,7 @@ public class AuthServiceImpl implements AuthService {
         User user = User.builder()
                 .email(email)
                 .username(request.getUsername().trim())
-                .password(passwordUtil.hashPassword(request.getPassword()))
+                .password(passwordEncoder.encode(request.getPassword()))
                 .build();
 
         try {
@@ -55,7 +55,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findById(normalize(request.getEmail()))
                 .orElseThrow(InvalidCredentialsException::new);
 
-        if (!passwordUtil.checkPassword(request.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new InvalidCredentialsException();
         }
 
