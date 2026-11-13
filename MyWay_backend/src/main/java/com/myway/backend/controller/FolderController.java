@@ -1,7 +1,8 @@
 package com.myway.backend.controller;
 
 import com.myway.backend.model.Folder;
-import com.myway.backend.service.FolderService;
+import com.myway.backend.service.folder.FolderService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 

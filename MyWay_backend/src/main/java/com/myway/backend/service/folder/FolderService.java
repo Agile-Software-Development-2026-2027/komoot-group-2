@@ -1,4 +1,4 @@
-package com.myway.backend.service;
+package com.myway.backend.service.folder;
 
 import com.myway.backend.model.Folder;
 import com.myway.backend.repository.FolderRepository;
