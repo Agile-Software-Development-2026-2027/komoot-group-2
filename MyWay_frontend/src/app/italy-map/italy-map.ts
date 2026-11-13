@@ -11,13 +11,20 @@ import {
   signal,
   untracked
 } from '@angular/core';
+import { SIDEBAR_MAP_OVERLAP_PX, SidebarRoute, SidebarService } from '../services/sidebar.service';
+import { WaypointService } from '../services/waypoint.service';
+import { CURRENT_USER, MAX_WAYPOINT_DISTANCE_METERS, MOCK_ROUTE_PUBLISHER, PlatformWaypoint } from '../services/waypoint.model';
+import { distanceToPolylineMeters } from '../utils/waypoint-distance.util';
 import { Subscription, pairwise } from 'rxjs';
 import * as L from 'leaflet';
 import { GpxService, ParsedGpx, GpxWaypoint, WaypointCategory, GpxTrack, RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from '../services/route-planner.service';
-import { SIDEBAR_MAP_OVERLAP_PX, SidebarService } from '../services/sidebar.service';
+//import { SIDEBAR_MAP_OVERLAP_PX, SidebarService } from '../services/sidebar.service';
 import { formatDistance, formatDuration } from '../utils/route-stats';
+
+/** GpxWaypoint shape plus the distance from the selected route, used for platform waypoints */
+type NearbyWaypoint = GpxWaypoint & { distanceMeters?: number };
 
 L.Marker.prototype.options.icon = L.icon({
   iconUrl: 'leaflet/marker-icon.png',
@@ -207,6 +214,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private readonly injector = inject(Injector);
   private readonly sidebar = inject(SidebarService);
   protected readonly routePlanner = inject(RoutePlannerService);
+    private readonly waypointService = inject(WaypointService);
 
   /** When active, clicks on the map set the start and destination of a route */
   public readonly planningMode = signal(false);
@@ -235,6 +243,8 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private readonly trackLines = new Map<GpxTrack, L.Polyline[]>();
   private gpxSubscription?: Subscription;
   private styleSubscription?: Subscription;
+    private nearbyLayerGroup?: L.FeatureGroup;
+  private nearbySubscription?: Subscription;
 
   // Italy Border [N - S - E - W]
   private readonly italyBounds = L.latLngBounds([36.4, 6.7], [47.1, 18.6]);
@@ -284,11 +294,21 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       { injector: this.injector },
     );
 
+    // Whenever the route sidebar opens, the waypoint panel closes
     effect(
       () => {
         if (this.sidebar.isOpen()) {
           untracked(() => this.closeWaypointDetails());
         }
+      },
+      { injector: this.injector },
+    );
+
+     effect(
+      () => {
+        const selected = this.sidebar.selectedRoute();
+        const enabled = this.sidebar.nearbyWaypointsEnabled();
+        untracked(() => this.renderNearbyWaypoints(selected, enabled));
       },
       { injector: this.injector },
     );
@@ -346,9 +366,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         { color, weight, opacity: 0.85, lineJoin: 'round' },
       ).addTo(this.plannedRouteGroup);
       // Outside planning mode a click shows the route stats; in planning mode it reaches the map and sets a point
-      this.routeLayer.on('click', (e: L.LeafletMouseEvent) => {
+        this.routeLayer.on('click', (e: L.LeafletMouseEvent) => {
         if (this.planningMode()) return;
         L.DomEvent.stopPropagation(e);
+        this.closeWaypointDetails();
         this.sidebar.showPlannedRoute(route);
       });
       this.map.attributionControl.addAttribution(ROUTING_ATTRIBUTION);
@@ -384,6 +405,9 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         track.estimatedDurationSeconds = calculateEstimatedDuration(track.distanceMeters, track.category);
       }
       if (!track.difficulty) track.difficulty = calculateDifficulty(track.distanceMeters);
+      // ⚠️ MOCK metadata until the Backend provides publisher/visibility
+      track.publisher ??= MOCK_ROUTE_PUBLISHER;
+      track.isPublic ??= true;
 
       const lines: L.Polyline[] = [];
       this.trackLines.set(track, lines);
@@ -401,8 +425,9 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
             opacity: 0,
             interactive: true,
           });
-          const onTrackClick = (e: L.LeafletMouseEvent) => {
+            const onTrackClick = (e: L.LeafletMouseEvent) => {
             L.DomEvent.stopPropagation(e);
+            this.closeWaypointDetails(); // close the waypoint panel, the route panel replaces it
             this.sidebar.showTrack(track, data.waypoints);
           };
 
@@ -444,13 +469,15 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   }
 
   //POP-UP Showing Info
-  public selectedWaypoint = signal<GpxWaypoint | null>(null);
-  public openWaypointDetails(wp: GpxWaypoint): void {
-    this.sidebar.close();
+  public selectedWaypoint = signal<NearbyWaypoint  | null>(null);
+  public openWaypointDetails(wp: NearbyWaypoint ): void {
     this.selectedWaypoint.set(wp);
+    this.sidebar.close();
   }
   public closeWaypointDetails(): void {
     this.selectedWaypoint.set(null);
+    this.isEditingWaypoint.set(false);
+
   }
 
   public previewPhotoUrl = signal<string | null>(null);
@@ -541,6 +568,61 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     }
 
     this.closeEditModal();
+  }
+
+    /** Draws (or removes) the PlatformWaypoint markers within MAX_WAYPOINT_DISTANCE_METERS of the selected route */
+  private renderNearbyWaypoints(selected: SidebarRoute | null, enabled: boolean): void {
+    if (!this.map) return;
+
+    this.nearbySubscription?.unsubscribe();
+    this.nearbyLayerGroup ??= L.featureGroup().addTo(this.map);
+    this.nearbyLayerGroup.clearLayers(); // also avoids duplicate markers
+    this.sidebar.nearbyWaypointCount.set(0);
+
+    if (!enabled || selected?.kind !== 'gpx' || !this.sidebar.canShowNearbyWaypoints()) return;
+
+    const routePoints = selected.track.segments.flatMap((seg) =>
+      seg.points.map(([lat, lon]) => ({ lat, lon })),
+    );
+
+    this.nearbySubscription = this.waypointService.getWaypoints().subscribe((all) => {
+      const nearby = all
+        .filter((wp) => this.waypointService.isVisibleToUser(wp, CURRENT_USER))
+        .map((wp) => ({
+          wp,
+          distance: distanceToPolylineMeters({ lat: wp.latitude, lon: wp.longitude }, routePoints),
+        }))
+        .filter((item) => item.distance <= MAX_WAYPOINT_DISTANCE_METERS)
+        .sort((a, b) => a.distance - b.distance);
+
+      nearby.forEach((item) => this.addPlatformWaypointMarker(item.wp, item.distance));
+      this.sidebar.nearbyWaypointCount.set(nearby.length);
+    });
+  }
+
+  private addPlatformWaypointMarker(wp: PlatformWaypoint, distanceMeters: number): void {
+    // The existing waypoint panel accepts a GpxWaypoint, so the platform waypoint is converted to that shape
+    const asGpx: NearbyWaypoint = {
+      lat: wp.latitude,
+      lon: wp.longitude,
+      name: wp.name,
+      desc: wp.description,
+      categories: [wp.category],
+      photos: wp.photos,
+      distanceMeters,
+    };
+    const marker = L.marker([wp.latitude, wp.longitude], { icon: createWaypointIcon(asGpx) });
+    marker.on('click', (e) => {
+      L.DomEvent.stopPropagation(e);
+      this.activeMarker = marker;
+      this.openWaypointDetails(asGpx);
+    });
+    marker.addTo(this.nearbyLayerGroup!);
+  }
+
+  /** 450 -> "450 m", 1200 -> "1.2 km" */
+  protected formatWaypointDistance(meters: number): string {
+    return meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toFixed(1)} km`;
   }
 
   private escapeHtml(text: string): string {
@@ -670,6 +752,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.gpxSubscription?.unsubscribe();
     this.styleSubscription?.unsubscribe();
     this.map?.remove();
+    this.nearbySubscription?.unsubscribe();
   }
 
 }

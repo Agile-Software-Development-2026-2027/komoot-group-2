@@ -30,6 +30,9 @@ export interface GpxTrack {
   color?: string;
   distanceMeters?: number;
   estimatedDurationSeconds?: number;
+  /** ⚠️ Mock metadata until the Backend provides it */
+  publisher?: string;
+  isPublic?: boolean;
 }
 
 export interface ParsedGpx {

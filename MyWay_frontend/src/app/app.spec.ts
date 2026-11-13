@@ -26,7 +26,7 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelector('app-menu-bar')).toBeTruthy();
+    expect(compiled.querySelector('app-gpx-upload')).toBeTruthy();
     expect(compiled.querySelector('app-italy-map')).toBeTruthy();
-    expect(compiled.querySelector('app-sidebar')).toBeTruthy();
   });
 });

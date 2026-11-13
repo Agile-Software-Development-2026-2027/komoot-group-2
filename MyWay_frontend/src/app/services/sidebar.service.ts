@@ -1,10 +1,13 @@
-import { Injectable, effect, inject, signal, untracked } from '@angular/core';
+//import { Injectable, effect, inject, signal, untracked } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
 import { ElevationStats, computeElevationStats } from '../utils/route-stats';
 import { ElevationService } from './elevation.service';
 import { GpxService, GpxTrack, GpxWaypoint } from './gpx.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from './route-planner.service';
+import { CURRENT_USER } from './waypoint.model';
+
 
 /**
  * Width of the map covered by the open sidebar, plus some margin. From sidebar.css: the panel is
@@ -44,6 +47,16 @@ export class SidebarService {
   readonly selectedRoute = signal<SidebarRoute | null>(null);
   readonly elevation = signal<ElevationState>({ status: 'idle' });
   readonly trackColorUpdate = signal<{ track: GpxTrack; color: string } | null>(null);
+  /** "Show near-track waypoints" checkbox */
+  readonly nearbyWaypointsEnabled = signal(false);
+  readonly nearbyWaypointCount = signal(0);
+  /** Only for a public route published by ANOTHER user */
+  readonly canShowNearbyWaypoints = computed(() => {
+    const selected = this.selectedRoute();
+    if (selected?.kind !== 'gpx') return false;
+    const { publisher, isPublic } = selected.track;
+    return !!publisher && publisher !== CURRENT_USER && isPublic === true;
+  });
 
   private elevationRequest?: Subscription;
   /** Elevation already looked up per track/route, so selecting it again does not call the API again */
@@ -108,10 +121,15 @@ export class SidebarService {
   clearSelection(): void {
     this.elevationRequest?.unsubscribe();
     this.selectedRoute.set(null);
+    this.nearbyWaypointsEnabled.set(false);
     this.elevation.set({ status: 'idle' });
   }
 
   private select(route: SidebarRoute): void {
+     const current = this.selectedRoute();
+    const sameTrack = current?.kind === 'gpx' && route.kind === 'gpx' && current.track === route.track;
+    if (!sameTrack) this.nearbyWaypointsEnabled.set(false);
+
     this.elevationRequest?.unsubscribe();
     this.selectedRoute.set(route);
     this.open();

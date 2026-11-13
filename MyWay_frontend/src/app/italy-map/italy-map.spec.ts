@@ -41,13 +41,13 @@ describe('ItalyMap', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should keep the top-right corner free for the sidebar and put the map controls top-left', () => {
-    const topLeft = host.querySelector('.leaflet-top.leaflet-left')!;
+  it('should keep the top-left corner free for the sidebar and put the map controls bottom-right', () => {
+    const bottomRight = host.querySelector('.leaflet-bottom.leaflet-right')!;
 
-    expect(host.querySelector('.leaflet-top.leaflet-right')?.children).toHaveLength(0);
-    expect(topLeft.querySelector('.leaflet-control-zoom')).toBeTruthy();
-    expect(topLeft.querySelector('a[title="Plan a route"]')).toBeTruthy();
-    expect(topLeft.querySelector('a[title="Map style"]')).toBeTruthy();
+    expect(host.querySelector('.leaflet-top.leaflet-left')?.children).toHaveLength(0);
+    expect(bottomRight.querySelector('.leaflet-control-zoom')).toBeTruthy();
+    expect(bottomRight.querySelector('a[title="Plan a route"]')).toBeTruthy();
+    expect(bottomRight.querySelector('a[title="Map style"]')).toBeTruthy();
   });
 
   it('should restyle only the visible track lines, and only with what changed', () => {

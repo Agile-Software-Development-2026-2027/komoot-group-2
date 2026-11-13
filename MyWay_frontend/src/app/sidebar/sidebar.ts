@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { MAX_WAYPOINT_DISTANCE_METERS } from '../services/waypoint.model';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ROUTE_CATEGORY_CONFIG, calculateEstimatedDuration } from '../italy-map/italy-map';
 import { RouteCategory, RouteDifficulty } from '../services/gpx.service';
@@ -56,6 +57,7 @@ export class Sidebar {
   protected readonly trackStyle = toSignal(this.trackStyleHandler.style$, { requireSync: true });
   protected readonly minWeight = MIN_WEIGHT;
   protected readonly maxWeight = MAX_WEIGHT;
+    protected readonly maxDistanceKm = MAX_WAYPOINT_DISTANCE_METERS / 1000;
 
   protected readonly summary = computed<RouteSummary | null>(() => {
     const selected = this.sidebar.selectedRoute();
