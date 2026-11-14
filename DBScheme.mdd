@@ -1,0 +1,62 @@
+erDiagram
+    %% Source of truth: MyWay_backend/src/main/resources/db/migration (Flyway).
+    %% ENUM columns are stored as VARCHAR_30 and mapped to Java enums:
+    %%   ROUTE.category      -> RouteCategory   (HIKING, CYCLING, RUNNING, WALKING)
+    %%   ROUTE.difficulty    -> Difficulty      (EASY, MEDIUM, HARD)
+    %%   WAYPOINT.category   -> WaypointCategory (FOUNTAIN, SHELTER, PANORAMIC_VIEW, SANCTUARY, PEAK)
+
+    USERS {
+        VARCHAR_255 email PK
+        VARCHAR_50 username "not unique"
+        VARCHAR_255 password "BCrypt hash"
+    }
+
+    ROUTE {
+        INT id PK
+        VARCHAR_255 name
+        VARCHAR_255 gpx_path "path of the .gpx file on disk"
+        ENUM category
+        VARCHAR_255 publisher FK
+        VARCHAR_255 picture_path "nullable"
+        ENUM difficulty
+        INT estimated_time_in_minutes "nullable, >= 0"
+        DOUBLE length_in_meters "nullable, >= 0"
+        BOOLEAN is_public "default false"
+    }
+
+    WAYPOINT {
+        INT id PK
+        ENUM category
+        TEXT description "nullable"
+        VARCHAR_255 publisher FK
+        BOOLEAN is_public "default false"
+        DOUBLE latitude "-90..90"
+        DOUBLE longitude "-180..180"
+    }
+
+    WAYPOINT_PICTURES {
+        INT waypoint_id PK, FK
+        VARCHAR_255 picture_path PK
+    }
+
+    REPORT_ROUTE {
+        INT route_id PK, FK
+        VARCHAR_255 reporter_email PK, FK
+    }
+
+    REPORT_WAYPOINT {
+        INT waypoint_id PK, FK
+        VARCHAR_255 reporter_email PK, FK
+    }
+
+    %% Relationships
+    USERS ||--o{ ROUTE : "publishes"
+    USERS ||--o{ WAYPOINT : "publishes"
+
+    WAYPOINT ||--o{ WAYPOINT_PICTURES : "has_pictures"
+
+    USERS ||--o{ REPORT_ROUTE : "reports_route"
+    ROUTE ||--o{ REPORT_ROUTE : "is_reported_in"
+
+    USERS ||--o{ REPORT_WAYPOINT : "reports_waypoint"
+    WAYPOINT ||--o{ REPORT_WAYPOINT : "is_reported_in"

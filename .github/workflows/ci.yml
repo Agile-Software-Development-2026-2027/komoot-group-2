@@ -16,8 +16,36 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      # Add here the steps that build and test your project.
-      # Until then this job does nothing and always passes.
+
+      # Frontend (Angular + Vitest) 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # same as dockerfile
+          cache: npm
+          cache-dependency-path: MyWay_frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: MyWay_frontend
+        run: npm ci
+
+      - name: Frontend tests (*.spec.ts)
+        working-directory: MyWay_frontend
+        run: npx ng test --watch=false
+
+      - name: Frontend build
+        working-directory: MyWay_frontend
+        run: npm run build
+
+      # Backend (Spring Boot + JUnit) 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25 
+          cache: maven
+
+      - name: Backend tests
+        working-directory: MyWay_backend
+        run: ./mvnw -B test
