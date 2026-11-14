@@ -41,6 +41,7 @@
   </header>
 
   <div class="panel-body">
+    @if (sidebar.mode() === 'route' ){
     <!-- Stats of the clicked or created route -->
     <section class="panel-section" aria-labelledby="sidebar-route-title">
       <h3 id="sidebar-route-title" class="section-title">Route stats</h3>
@@ -134,7 +135,15 @@
           <p>Click on a route on the map, or create a new one, to see its stats here.</p>
         </div>
       }
+
     </section>
+  } @else {
+     <!-- Filters -->
+      <section class="panel-section" aria-labelledby="sidebar-filters-title">
+        <h3 id="sidebar-filters-title" class="section-title">Filters</h3>
+        <p class="stats-note">Filter routes and waypoints by radius, difficulty and altitude.</p>
+      </section>
+  }
   </div>
 </aside>
 
