@@ -1,5 +1,4 @@
 erDiagram
-    %% Source of truth: MyWay_backend/src/main/resources/db/migration (Flyway).
     %% ENUM columns are stored as VARCHAR_30 and mapped to Java enums:
     %%   ROUTE.category      -> RouteCategory   (HIKING, CYCLING, RUNNING, WALKING)
     %%   ROUTE.difficulty    -> Difficulty      (EASY, MEDIUM, HARD)

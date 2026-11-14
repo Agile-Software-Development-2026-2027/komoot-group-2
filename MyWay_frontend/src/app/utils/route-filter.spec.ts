@@ -49,7 +49,7 @@ describe('matchTrack', () => {
   });
 });
 describe('matchWaypoint', () => {
-  const waypoint: GpxWaypoint = { lat: 41.95, lon: 12.5, ele: 200 };
+  const waypoint: GpxWaypoint = { lat: 41.95, lon: 12.5, ele: 200, isPublic: false };
 
   it('shows every waypoint when no filter is set', () => {
     expect(matchWaypoint(waypoint, undefined, DEFAULT_ROUTE_FILTERS)).toBe(true);

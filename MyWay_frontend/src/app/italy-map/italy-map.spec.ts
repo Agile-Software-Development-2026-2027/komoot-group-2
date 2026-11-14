@@ -68,7 +68,7 @@ describe('ItalyMap', () => {
   it('should show the stats of a clicked GPX track in the sidebar', () => {
     const sidebar = TestBed.inject(SidebarService);
     const showTrackSpy = vi.spyOn(sidebar, 'showTrack').mockImplementation(() => {});
-    const waypoints = [{ lat: 45.1, lon: 7.1, name: 'Fountain' }];
+    const waypoints = [{ lat: 45.1, lon: 7.1, name: 'Fountain', isPublic: false }];
     component.renderGpx({
       fileName: 'loop.gpx',
       waypoints,

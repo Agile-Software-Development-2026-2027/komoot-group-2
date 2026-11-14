@@ -79,8 +79,8 @@ describe('Sidebar', () => {
 
   it('should show the stats and photos of a clicked GPX route', async () => {
     sidebar.showTrack(GPX_TRACK, [
-      { lat: 45.9, lon: 7.8, photos: ['photo-a.jpg', 'photo-b.jpg'] },
-      { lat: 45.92, lon: 7.82, photos: ['photo-a.jpg'] },
+      { lat: 45.9, lon: 7.8, photos: ['photo-a.jpg', 'photo-b.jpg'], isPublic: false },
+      { lat: 45.92, lon: 7.82, photos: ['photo-a.jpg'], isPublic: false },
     ]);
     await fixture.whenStable();
 
