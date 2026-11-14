@@ -267,8 +267,9 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.map.fitBounds(this.italyBounds, { padding: [10, 10] });
 
     // Bottom corners stack upwards: added first = lowest, so the zoom buttons end up above the tools
-    this.addToolsControl();
     L.control.zoom({ position: 'topleft' }).addTo(this.map);
+    this.addToolsControl();
+
 
     // When click on the map the Map Style list will close; in planning mode it sets a route point
     this.map.on('click', (e: L.LeafletMouseEvent) => {

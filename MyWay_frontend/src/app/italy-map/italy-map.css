@@ -115,13 +115,14 @@
 :host ::ng-deep .style-panel {
   display: none;
   position: absolute;
-  bottom: 0;
-  right: calc(100% + 8px);
+  top: 40px;
+  left: calc(100% + 8px);   /* بدل right */
   min-width: 160px;
   padding: 6px;
   background: #fff;
   border-radius: 10px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
 }
 
 :host ::ng-deep .style-panel.open {
