@@ -10,3 +10,5 @@ Thumbs.db
 # Local environment (see .env.example)
 .env
 .conf
+CLAUDE.md
+GEMINI.md
