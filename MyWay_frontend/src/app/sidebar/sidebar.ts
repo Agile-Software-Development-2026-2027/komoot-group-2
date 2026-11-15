@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { HttpClient } from '@angular/common/http'; // Import HttpClient for backend requests
 import { ROUTE_CATEGORY_CONFIG, calculateEstimatedDuration } from '../italy-map/italy-map';
 import { RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { ROUTE_NAME } from '../services/route-planner.service';
@@ -49,9 +50,12 @@ const PRESET_TRACK_COLORS = [
 export class Sidebar {
   protected readonly sidebar = inject(SidebarService);
   private readonly trackStyleHandler = inject(TrackStyleHandler);
+private readonly http = inject(HttpClient); // (add) Inject HttpClient for backend requests
+
+  // (add) Temporary user email used for testing / until full auth is wired up
+  private readonly currentUserEmail = 'test@example.com';
 
   protected readonly previewPhotoUrl = signal<string | null>(null);
-
   /** "Custom Route": color and thickness of the tracks on the map */
   protected readonly trackStyle = toSignal(this.trackStyleHandler.style$, { requireSync: true });
   protected readonly minWeight = MIN_WEIGHT;
@@ -186,4 +190,99 @@ protected saveTrackChanges(): void {
 
   this.closeEditTrackModal();
 }
+
+// Save route logic and folder selection state/handlers connected to the real backend
+  protected readonly isSavingRoute = signal(false);
+  protected readonly userFolders = signal<{ id: number; name: string; userEmail: string }[]>([]);
+  protected readonly selectedFolderId = signal<number | null>(null);
+  protected readonly newFolderName = signal('');
+
+
+
+  protected openSaveRouteModal(): void {
+
+    const selected = this.sidebar.selectedRoute();
+    if (!selected) return;
+    
+    this.selectedFolderId.set(null);
+    this.newFolderName.set('');
+    this.isSavingRoute.set(true);
+
+    // Fetch existing folders from backend using userEmail
+    this.http.get<any[]>(`http://localhost:8080/api/folders?userEmail=${this.currentUserEmail}`).subscribe({
+      next: (folders) => {
+        this.userFolders.set(folders);
+      },
+      error: (err) => {
+        console.error('Error fetching folders from backend:', err);
+      }
+    });
+  }
+
+  protected closeSaveRouteModal(): void {
+    this.isSavingRoute.set(false);
+    this.selectedFolderId.set(null);
+    this.newFolderName.set('');
+  }
+
+  // Ensures only one option is active at a time: selecting a folder clears the new name input
+  protected onFolderSelected(value: string): void {
+    const id = value ? +value : null;
+    this.selectedFolderId.set(id);
+    if (id !== null) {
+      this.newFolderName.set('');
+    }
+  }
+
+  // Ensures only one option is active at a time: typing a new folder name clears the dropdown selection
+  protected onNewFolderInput(value: string): void {
+    this.newFolderName.set(value);
+    if (value.trim() !== '') {
+      this.selectedFolderId.set(null);
+    }
+  }
+
+  protected confirmSaveRoute(): void {
+    const selected = this.sidebar.selectedRoute();
+    if (!selected) return;
+    
+    const folderId = this.selectedFolderId();
+    const newName = this.newFolderName().trim();
+    const routeName = this.summary()?.name || 'My Route';
+
+    if (!folderId && !newName) {
+      alert('Please select an existing folder or type a new folder name.');
+      return;
+    }
+
+    if (newName) {
+      // 1. Create the new folder first, then use its returned ID to save the route
+      this.http.post<any>(`http://localhost:8080/api/folders?name=${encodeURIComponent(newName)}&userEmail=${this.currentUserEmail}`, {}).subscribe({
+        next: (createdFolder) => {
+          console.log('New folder created successfully:', createdFolder);
+          this.saveRouteToBackend(createdFolder.id, routeName);
+        },
+        error: (err) => {
+          console.error('Error creating new folder:', err);
+        }
+      });
+    } else if (folderId) {
+      // 2. Save directly into the selected existing folder ID
+      this.saveRouteToBackend(folderId, routeName);
+    }
+  }
+
+  // Helper method to send the POST request to /api/routes
+  private saveRouteToBackend(folderId: number, routeName: string): void {
+    this.http.post<any>(`http://localhost:8080/api/routes?folderId=${folderId}&routeName=${encodeURIComponent(routeName)}`, {}).subscribe({
+      next: (savedRoute) => {
+        console.log('Route saved successfully to database:', savedRoute);
+        alert('Route saved successfully!');
+        this.closeSaveRouteModal();
+      },
+      error: (err) => {
+        console.error('Error saving route to backend:', err);
+      }
+    });
+  }
 }

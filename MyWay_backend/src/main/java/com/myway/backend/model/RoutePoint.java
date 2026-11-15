@@ -21,11 +21,11 @@ public class RoutePoint {
     @JoinColumn(name = "route_id", nullable = false)
     private SavedRoute route;
 
-    // Costruttore vuoto (obbligatorio per JPA)
+    // empty constructor for JPA
     public RoutePoint() {
     }
 
-    // Costruttore con campi
+    // constructor with fields
     public RoutePoint(Double latitude, Double longitude, SavedRoute route) {
         this.latitude = latitude;
         this.longitude = longitude;
