@@ -36,9 +36,13 @@ public class Waypoint {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    /** Rows of the waypoint_categories table. */
+    @Builder.Default
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "waypoint_categories", joinColumns = @JoinColumn(name = "waypoint_id"))
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
-    private WaypointCategory category;
+    @Column(name = "category", nullable = false, length = 30)
+    private Set<WaypointCategory> categories = new LinkedHashSet<>();
 
     @Column(columnDefinition = "text")
     private String description;
@@ -59,7 +63,7 @@ public class Waypoint {
 
     /** Rows of the waypoint_pictures table. */
     @Builder.Default
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "waypoint_pictures", joinColumns = @JoinColumn(name = "waypoint_id"))
     @Column(name = "picture_path", nullable = false)
     private Set<String> picturePaths = new LinkedHashSet<>();

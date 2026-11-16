@@ -13,6 +13,9 @@ import {
 } from '@angular/core';
 import { Subscription, pairwise } from 'rxjs';
 import * as L from 'leaflet';
+import { WaypointApiService, NEARBY_RADIUS_KM } from '../services/waypoint-api.service';
+import { LocationService } from '../services/location.service';
+import { AuthService } from '../services/auth.service';
 import { GpxService, ParsedGpx, GpxWaypoint, WaypointCategory, GpxTrack, RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from '../services/route-planner.service';
@@ -142,10 +145,11 @@ function createWaypointIcon(wp: GpxWaypoint): L.DivIcon {
   const baseStyle = primaryCat ? CATEGORY_STYLES[primaryCat] : DEFAULT_STYLE;
   // Public waypoints keep the same structure but are orange
   const style = wp.isPublic ? { ...baseStyle, bgGradient: PUBLIC_BG_GRADIENT } : baseStyle;
+  const background = style.bgGradient;
   return L.divIcon({
     className: 'custom-wp-pin',
     html: `
-      <div class="komoot-pin" style="background: ${style.bgGradient};" title="${wp.name || style.label}">
+      <div class="komoot-pin${wp.isPublic ? ' is-public' : ''}" style="background: ${background};" title="${wp.name || style.label}">
         <span class="komoot-pin-svg">${style.svg}</span>
       </div>
     `,
@@ -210,6 +214,9 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private readonly trackStyleHandler= inject(TrackStyleHandler);
   private readonly injector = inject(Injector);
   private readonly sidebar = inject(SidebarService);
+  private readonly waypointApi = inject(WaypointApiService);
+  private readonly location = inject(LocationService);
+  private readonly auth = inject(AuthService);
   protected readonly routePlanner = inject(RoutePlannerService);
 
   /** When active, clicks on the map set the start and destination of a route */
@@ -239,6 +246,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private readonly trackLines = new Map<GpxTrack, L.Polyline[]>();
   private gpxSubscription?: Subscription;
   private styleSubscription?: Subscription;
+  /** Public waypoints loaded from the backend (kept apart so loading a GPX file does not clear them) */
+  private publicWaypointLayer?: L.FeatureGroup;
+  private nearbySubscription?: Subscription;
+  private publishSubscription?: Subscription;
 
   // Italy Border [N - S - E - W]
   private readonly italyBounds = L.latLngBounds([36.4, 6.7], [47.1, 18.6]);
@@ -313,6 +324,9 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         this.renderGpx(gpx);
       }
     });
+    this.publicWaypointLayer = L.featureGroup().addTo(this.map);
+    void this.loadNearbyWaypoints();
+
     // Update the tracks when the user changes color or thickness ("Custom Route" in the sidebar).
     // Only what changed is applied, so a new thickness keeps each GPX track's category color.
     this.styleSubscription = this.trackStyleHandler.style$.pipe(pairwise()).subscribe(([previous, style]) => {
@@ -426,6 +440,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       marker.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
         this.activeMarker = marker;
+        this.activeWaypoint = wp;
         this.openWaypointDetails(wp);
       });
       marker.addTo(this.gpxLayerGroup);
@@ -444,6 +459,42 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         paddingBottomRight: [rightPadding, padding],
         maxZoom: 16,
       });
+    }
+  }
+
+  /**
+   * Asks for the user's position (falling back to the center of Italy) and shows the public
+   * waypoints within 200 km of it.
+   */
+  private async loadNearbyWaypoints(): Promise<void> {
+    const { position, isFallback } = await this.location.getUserLocation();
+    if (!this.publicWaypointLayer) return; // the map was destroyed in the meantime
+    if (isFallback) {
+      this.gpxService.showNotification({
+        type: 'error',
+        message: 'Your location is not available: showing the waypoints near the center of Italy.',
+      });
+    }
+    this.nearbySubscription = this.waypointApi.loadNearby(position, NEARBY_RADIUS_KM).subscribe({
+      next: (waypoints) => this.renderPublicWaypoints(waypoints),
+      error: () =>
+        this.gpxService.showNotification({ type: 'error', message: 'Could not load the nearby waypoints.' }),
+    });
+  }
+
+  /** Draws the (orange) public waypoints coming from the backend. */
+  public renderPublicWaypoints(waypoints: GpxWaypoint[]): void {
+    if (!this.publicWaypointLayer) return;
+    this.publicWaypointLayer.clearLayers();
+    for (const wp of waypoints) {
+      const marker = L.marker([wp.lat, wp.lon], { icon: createWaypointIcon(wp) });
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        this.activeMarker = marker;
+        this.activeWaypoint = wp;
+        this.openWaypointDetails(wp);
+      });
+      marker.addTo(this.publicWaypointLayer);
     }
   }
 
@@ -475,6 +526,8 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   public editDesc = signal<string>('');
   public editPhotos = signal<string[]>([]);
   private activeMarker?: L.Marker;
+  /** The waypoint object the active marker was drawn from (the selected one can be a copy of it) */
+  private activeWaypoint?: GpxWaypoint;
 
   public openEditModal(): void {
     const wp = this.selectedWaypoint();
@@ -548,6 +601,49 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     }
 
     this.closeEditModal();
+  }
+
+  /** True while a waypoint is being sent to the backend */
+  public readonly isPublishing = signal(false);
+
+  /** "Make Public": saves the selected private waypoint on the backend; it then becomes orange. */
+  public makeWaypointPublic(): void {
+    const wp = this.selectedWaypoint();
+    if (!wp || wp.isPublic || this.isPublishing()) return;
+
+    if (!this.auth.isLoggedIn()) {
+      this.gpxService.showNotification({ type: 'error', message: 'Log in to make a waypoint public.' });
+      this.auth.requestLogin();
+      return;
+    }
+    if (!wp.categories || wp.categories.length === 0) {
+      this.gpxService.showNotification({
+        type: 'error',
+        message: 'Choose at least one category with "Custom Waypoint" before making it public.',
+      });
+      return;
+    }
+
+    this.isPublishing.set(true);
+    this.publishSubscription = this.waypointApi.publish(wp).subscribe({
+      next: (saved) => {
+        this.isPublishing.set(false);
+        for (const target of new Set([wp, this.activeWaypoint])) {
+          if (!target) continue;
+          target.id = saved.id;
+          target.isPublic = true;
+          target.photos = saved.photos;
+        }
+        this.selectedWaypoint.set({ ...wp });
+        this.activeMarker?.setIcon(createWaypointIcon(wp));
+        this.gpxService.showNotification({ type: 'success', message: 'Waypoint published.' });
+      },
+      error: () => {
+        this.isPublishing.set(false);
+        // a 401 is already handled by the auth interceptor (it asks the user to log in again)
+        this.gpxService.showNotification({ type: 'error', message: 'Could not publish the waypoint. Try again.' });
+      },
+    });
   }
 
   private escapeHtml(text: string): string {
@@ -676,6 +772,9 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.gpxSubscription?.unsubscribe();
     this.styleSubscription?.unsubscribe();
+    this.nearbySubscription?.unsubscribe();
+    this.publishSubscription?.unsubscribe();
+    this.publicWaypointLayer = undefined;
     this.map?.remove();
   }
 
