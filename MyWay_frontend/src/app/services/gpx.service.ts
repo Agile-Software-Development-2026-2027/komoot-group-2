@@ -185,6 +185,34 @@ export class GpxService {
     return this.currentGpxSubject.value;
   }
 
+  /**
+   * Displays an already-parsed GPX route on the map (e.g. from route search)
+   * and updates the export service without showing an upload toast.
+   */
+  public displayParsedGpx(parsed: ParsedGpx): void {
+    const firstTrack = parsed.tracks[0];
+    if (firstTrack) {
+      const points = firstTrack.segments.flatMap((seg) =>
+        seg.points.map(([lat, lon], idx) => ({
+          lat,
+          lon,
+          ...(seg.elevations?.[idx] != null ? { ele: seg.elevations[idx]! } : {}),
+        })),
+      );
+      this.gpxExportService.setRoute({
+        name: firstTrack.name || parsed.fileName.replace(/\.gpx$/i, ''),
+        points,
+        waypoints: parsed.waypoints.map((wp) => ({
+          lat: wp.lat,
+          lon: wp.lon,
+          ...(wp.ele !== undefined ? { ele: wp.ele } : {}),
+          ...(wp.name ? { name: wp.name } : {}),
+        })),
+      });
+    }
+    this.currentGpxSubject.next(parsed);
+  }
+
   private readFileAsText(file: File): Promise<string> {
     if (typeof file.text === 'function') {
       return file.text();

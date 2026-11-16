@@ -36,7 +36,26 @@ public class GPXParsingServiceImpl implements GPXParsingService {
                 Files.copy(is, tempFile, StandardCopyOption.REPLACE_EXISTING);
             }
 
-            GPX gpx = GPX.read(tempFile);
+            return parseGPX(tempFile);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Error parsing GPX file: " + e.getMessage(), e);
+        } finally {
+            // just to be sure that the tempfile is always removed
+            if (tempFile != null) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException ignored) {
+                    // this should never throw (throws if the file is a dir not empty or it has insufficient access ...)
+                }
+            }
+        }
+    }
+
+    @Override
+    public GPXDataDTO parseGPX(Path path) {
+        try {
+            GPX gpx = GPX.read(path);
 
             List<PointDTO> waypoints = gpx.wayPoints()
                 .map(this::mapToPointDTO)
@@ -67,15 +86,6 @@ public class GPXParsingServiceImpl implements GPXParsingService {
 
         } catch (IOException e) {
             throw new RuntimeException("Error parsing GPX file: " + e.getMessage(), e);
-        } finally {
-            // just to be sure that the tempfile is always removed
-            if (tempFile != null) {
-                try {
-                    Files.deleteIfExists(tempFile);
-                } catch (IOException ignored) {
-                    // this should never throw (throws if the file is a dir not empty or it has insufficient access ...)
-                }
-            }
         }
     }
 

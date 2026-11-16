@@ -128,4 +128,40 @@ describe('ItalyMap', () => {
     expect(host.querySelector('.route-panel')?.textContent).toContain('4.1 km · 55 min');
     expect(host.querySelector('.route-panel-btn.primary')?.textContent).toContain('Export GPX');
   });
+
+  it('should render and zoom to a route on the map when selected from route search', () => {
+    const mapInstance = (component as unknown as { map: L.Map }).map;
+    const fitBoundsSpy = vi.spyOn(mapInstance, 'fitBounds');
+
+    component.renderGpx({
+      fileName: 'tre-cime.gpx',
+      waypoints: [],
+      tracks: [
+        {
+          name: 'Tre Cime di Lavaredo Loop',
+          segments: [
+            {
+              points: [
+                [46.6125, 12.2961],
+                [46.6305, 12.3097],
+              ],
+            },
+          ],
+        },
+      ],
+      allCoordinates: [
+        [46.6125, 12.2961],
+        [46.6305, 12.3097],
+      ],
+    });
+
+    expect(gpxLayers().length).toBeGreaterThan(0);
+    expect(fitBoundsSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        maxZoom: 16,
+        animate: true,
+      }),
+    );
+  });
 });

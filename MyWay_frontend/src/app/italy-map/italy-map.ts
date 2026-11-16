@@ -439,6 +439,8 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         paddingTopLeft: [padding, padding],
         paddingBottomRight: [rightPadding, padding],
         maxZoom: 16,
+        animate: true,
+        duration: 0.8,
       });
     }
   }

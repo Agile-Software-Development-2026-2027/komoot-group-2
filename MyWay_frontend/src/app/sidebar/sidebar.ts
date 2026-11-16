@@ -3,6 +3,11 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ROUTE_CATEGORY_CONFIG, calculateEstimatedDuration } from '../italy-map/italy-map';
 import { RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { ROUTE_NAME } from '../services/route-planner.service';
+import {
+  PlaceSuggestion,
+  RouteSearchService,
+  SearchableRoute,
+} from '../services/route-search.service';
 import { SidebarService } from '../services/sidebar.service';
 import {
   DEFAULT_TRACK_STYLE,
@@ -48,9 +53,45 @@ const PRESET_TRACK_COLORS = [
 })
 export class Sidebar {
   protected readonly sidebar = inject(SidebarService);
+  protected readonly routeSearch = inject(RouteSearchService);
   private readonly trackStyleHandler = inject(TrackStyleHandler);
 
+  protected readonly formatDistance = formatDistance;
   protected readonly previewPhotoUrl = signal<string | null>(null);
+
+  protected onSearchInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.routeSearch.setQuery(value);
+  }
+
+  protected onSelectPlaceSuggestion(suggestion: PlaceSuggestion): void {
+    this.routeSearch.selectPlaceSuggestion(suggestion);
+  }
+
+  protected onSelectPlace(place: string): void {
+    this.routeSearch.togglePlace(place);
+  }
+
+  protected onClearSearch(): void {
+    this.routeSearch.clearSearch();
+  }
+
+  protected onPrevPage(): void {
+    this.routeSearch.prevPage();
+  }
+
+  protected onNextPage(): void {
+    this.routeSearch.nextPage();
+  }
+
+  protected onSelectSearchResult(route: SearchableRoute): void {
+    this.routeSearch.selectRoute(route);
+  }
+
+  protected isRouteSelected(route: SearchableRoute): boolean {
+    const selected = this.sidebar.selectedRoute();
+    return selected?.kind === 'gpx' && selected.track === route.track;
+  }
 
   /** "Custom Route": color and thickness of the tracks on the map */
   protected readonly trackStyle = toSignal(this.trackStyleHandler.style$, { requireSync: true });

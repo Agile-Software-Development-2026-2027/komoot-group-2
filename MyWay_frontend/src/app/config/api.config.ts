@@ -7,6 +7,11 @@ export const AUTH_ENDPOINTS = {
   register: `${API_BASE_URL}/api/auth/register`,
 } as const;
 
+/** Backend route endpoints. */
+export const ROUTE_ENDPOINTS = {
+  publicRoutes: `${API_BASE_URL}/api/routes/public`,
+} as const;
+
 /** True when the request targets our backend (and not a third-party API such as OSRM or Open-Meteo). */
 export function isBackendUrl(url: string): boolean {
   return url === API_BASE_URL || url.startsWith(`${API_BASE_URL}/`);

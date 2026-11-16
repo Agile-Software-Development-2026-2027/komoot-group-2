@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Sidebar } from './sidebar';
 import { SidebarService } from '../services/sidebar.service';
 import { RoutePlannerService } from '../services/route-planner.service';
+import { NOMINATIM_SEARCH_URL, RouteSearchService } from '../services/route-search.service';
 import { OPEN_METEO_ELEVATION_URL } from '../services/elevation.service';
 import { GpxTrack } from '../services/gpx.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
@@ -165,5 +166,94 @@ describe('Sidebar', () => {
     expect(trackStyle.getCurrentStyle().weight).toBe(8);
     expect(swatch.style.height).toBe('8px');
     expect(swatch.style.backgroundColor).toBe('rgb(18, 52, 86)');
+  });
+
+  it('should display a single search bar in the sidebar and show paginated routes in a list as the user types', async () => {
+    const routeSearch = TestBed.inject(RouteSearchService);
+    routeSearch.pageSize.set(2);
+    routeSearch.setRoutes([
+      {
+        id: '1',
+        name: 'Tre Cime di Lavaredo Loop 1',
+        place: 'Dolomites',
+        author: 'marco_alp',
+        track: GPX_TRACK,
+        waypoints: [],
+      },
+      {
+        id: '2',
+        name: 'Tre Cime di Lavaredo Loop 2',
+        place: 'Dolomites',
+        author: 'marco_alp',
+        track: GPX_TRACK,
+        waypoints: [],
+      },
+      {
+        id: '3',
+        name: 'Tre Cime di Lavaredo Loop 3',
+        place: 'Dolomites',
+        author: 'marco_alp',
+        track: GPX_TRACK,
+        waypoints: [],
+      },
+    ]);
+
+    const searchInputs = host.querySelectorAll<HTMLInputElement>('.route-search-input');
+    expect(searchInputs).toHaveLength(1);
+    const searchInput = searchInputs[0];
+    expect(host.querySelector('.route-results-list')).toBeNull();
+
+    searchInput.value = 'Lavaredo';
+    searchInput.dispatchEvent(new Event('input'));
+    http.expectOne((req) => req.url === NOMINATIM_SEARCH_URL).flush([]);
+    await fixture.whenStable();
+
+    let items = host.querySelectorAll<HTMLButtonElement>('.route-result-item');
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent).toContain('Tre Cime di Lavaredo Loop 1');
+    expect(host.querySelector('.pagination-info')?.textContent).toContain('Page 1 of 2');
+
+    const nextBtn = host.querySelector<HTMLButtonElement>('.next-page')!;
+    nextBtn.click();
+    await fixture.whenStable();
+
+    items = host.querySelectorAll<HTMLButtonElement>('.route-result-item');
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain('Tre Cime di Lavaredo Loop 3');
+    expect(host.querySelector('.pagination-info')?.textContent).toContain('Page 2 of 2');
+  });
+
+  it('should allow seeing all the routes in a specific place and show the clicked route stats', async () => {
+    const routeSearch = TestBed.inject(RouteSearchService);
+    routeSearch.setRoutes([
+      {
+        id: '2',
+        name: 'Via Appia Antica Ride',
+        place: 'Rome',
+        author: 'luca_roma',
+        track: {
+          ...GPX_TRACK,
+          name: 'Via Appia Antica Ride',
+        },
+        waypoints: [],
+      },
+    ]);
+    await fixture.whenStable();
+
+    const placeChips = Array.from(host.querySelectorAll<HTMLButtonElement>('.place-chip'));
+    const romeChip = placeChips.find((chip) => chip.textContent?.trim() === 'Rome')!;
+    expect(romeChip).toBeTruthy();
+
+    romeChip.click();
+    await fixture.whenStable();
+
+    const items = host.querySelectorAll<HTMLButtonElement>('.route-result-item');
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain('Via Appia Antica Ride');
+
+    items[0].click();
+    await fixture.whenStable();
+
+    expect(host.querySelector('.route-name')?.textContent).toContain('Via Appia Antica Ride');
   });
 });

@@ -41,6 +41,125 @@
   </header>
 
   <div class="panel-body">
+    <!-- Search bar and route list -->
+    <section class="panel-section search-section" aria-labelledby="sidebar-search-title">
+      <h3 id="sidebar-search-title" class="section-title">Search routes</h3>
+
+      <div class="search-bar-box">
+        <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input
+          type="search"
+          class="route-search-input"
+          placeholder="Search route or place (e.g. Rome)…"
+          [value]="routeSearch.query()"
+          (input)="onSearchInput($event)"
+          aria-label="Search routes or places" />
+        @if (routeSearch.isSearching()) {
+          <button
+            type="button"
+            class="search-clear-btn"
+            (click)="onClearSearch()"
+            aria-label="Clear search"
+            title="Clear search">
+            &times;
+          </button>
+        }
+      </div>
+
+      @if (routeSearch.placeSuggestions().length > 0) {
+        <ul class="place-suggestions-list" role="listbox" aria-label="Place suggestions">
+          @for (suggestion of routeSearch.placeSuggestions(); track suggestion.displayName) {
+            <li>
+              <button
+                type="button"
+                class="place-suggestion-btn"
+                (click)="onSelectPlaceSuggestion(suggestion)">
+                See all routes in {{ suggestion.displayName }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (routeSearch.places().length > 0) {
+        <div class="place-filters" role="group" aria-label="Filter routes by place">
+          @for (place of routeSearch.places(); track place) {
+            <button
+              type="button"
+              class="place-chip"
+              [class.active]="routeSearch.selectedPlaceName() === place"
+              [attr.aria-pressed]="routeSearch.selectedPlaceName() === place"
+              (click)="onSelectPlace(place)">
+              {{ place }}
+            </button>
+          }
+        </div>
+      }
+
+      @if (routeSearch.isSearching()) {
+        @let results = routeSearch.paginatedResults();
+        @if (results.length > 0) {
+          <ul class="route-results-list" role="listbox" aria-label="Matching routes">
+            @for (item of results; track item.id) {
+              <li class="route-result-li">
+                <button
+                  type="button"
+                  class="route-result-item"
+                  [class.active]="isRouteSelected(item)"
+                  (click)="onSelectSearchResult(item)">
+                  <div class="result-top-row">
+                    <span class="result-route-name">{{ item.name }}</span>
+                    @if (item.place) {
+                      <span class="result-place-badge">{{ item.place }}</span>
+                    }
+                  </div>
+                  <div class="result-meta-row">
+                    <span class="result-author">by @{{ item.author }}</span>
+                    @if (item.track.distanceMeters) {
+                      <span class="result-distance">{{ formatDistance(item.track.distanceMeters) }}</span>
+                    }
+                    @if (item.track.difficulty) {
+                      <span class="result-difficulty diff-{{ item.track.difficulty }}">{{ item.track.difficulty }}</span>
+                    }
+                  </div>
+                </button>
+              </li>
+            }
+          </ul>
+
+          @if (routeSearch.totalPages() > 1) {
+            <nav class="search-pagination" aria-label="Search results pagination">
+              <button
+                type="button"
+                class="pagination-btn prev-page"
+                [disabled]="routeSearch.currentPage() === 0"
+                (click)="onPrevPage()"
+                aria-label="Previous page">
+                Prev
+              </button>
+              <span class="pagination-info">
+                Page {{ routeSearch.currentPage() + 1 }} of {{ routeSearch.totalPages() }}
+              </span>
+              <button
+                type="button"
+                class="pagination-btn next-page"
+                [disabled]="routeSearch.currentPage() + 1 >= routeSearch.totalPages()"
+                (click)="onNextPage()"
+                aria-label="Next page">
+                Next
+              </button>
+            </nav>
+          }
+        } @else if (!routeSearch.loading()) {
+          <p class="search-no-results">No routes found for this search.</p>
+        }
+      }
+    </section>
+
     <!-- Stats of the clicked or created route -->
     <section class="panel-section" aria-labelledby="sidebar-route-title">
       <h3 id="sidebar-route-title" class="section-title">Route stats</h3>
