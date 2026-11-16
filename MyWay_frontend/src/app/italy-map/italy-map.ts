@@ -135,9 +135,13 @@ const DEFAULT_STYLE = {
   bgGradient: 'linear-gradient(135deg, #64748b, #334155)', //color: grey
   svg: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/></svg>`,
 };
+const PUBLIC_BG_GRADIENT = 'linear-gradient(135deg, #fb923c, #ea580c)'; //color: orange
+
 function createWaypointIcon(wp: GpxWaypoint): L.DivIcon {
   const primaryCat = wp.categories && wp.categories.length > 0 ? wp.categories[0] : null;
-  const style = primaryCat ? CATEGORY_STYLES[primaryCat] : DEFAULT_STYLE;
+  const baseStyle = primaryCat ? CATEGORY_STYLES[primaryCat] : DEFAULT_STYLE;
+  // Public waypoints keep the same structure but are orange
+  const style = wp.isPublic ? { ...baseStyle, bgGradient: PUBLIC_BG_GRADIENT } : baseStyle;
   return L.divIcon({
     className: 'custom-wp-pin',
     html: `
@@ -449,6 +453,9 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.sidebar.close();
     this.selectedWaypoint.set(wp);
   }
+  /** Placeholder: reporting a public waypoint will be wired to the backend later. */
+  public reportWaypoint(): void {}
+
   public closeWaypointDetails(): void {
     this.selectedWaypoint.set(null);
   }

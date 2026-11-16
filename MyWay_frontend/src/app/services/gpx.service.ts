@@ -14,6 +14,10 @@ export interface GpxWaypoint {
   ele?: number;
   categories?: WaypointCategory[];
   photos?: string[];
+  /** True when the waypoint was published by a user and is visible to everyone. Private (false) by default. */
+  isPublic: boolean;
+  /** Username of the user who published the waypoint (only for public waypoints). */
+  publisher?: string;
 }
 
 export interface GpxTrackSegment {
@@ -267,6 +271,7 @@ export class GpxService {
         ele,
         categories: categories.length > 0 ? categories : undefined,
         photos: photos.length > 0 ? photos : undefined,
+        isPublic: false,
       });
     }
 
