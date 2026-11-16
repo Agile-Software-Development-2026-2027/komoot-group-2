@@ -180,7 +180,11 @@ export class GpxService {
     }
     this.notificationSubject.next(null);
   }
-
+ /** Shows on the map a route that does not come from a file (e.g. a route saved in the database) */
+  public showParsedGpx(parsed: ParsedGpx): void {
+    this.currentGpxSubject.next(parsed);
+  }
+  
   public getCurrentGpx(): ParsedGpx | null {
     return this.currentGpxSubject.value;
   }
