@@ -1,5 +1,6 @@
 package com.myway.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity
@@ -16,52 +17,49 @@ public class RoutePoint {
     @Column(nullable = false)
     private Double longitude;
 
+    private Double elevation;
 
-    @ManyToOne
+    private String name;
+
+    @Column(name = "point_order", nullable = false)
+    private Integer pointOrder;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id", nullable = false)
     private SavedRoute route;
 
-    // empty constructor for JPA
     public RoutePoint() {
     }
 
-    // constructor with fields
-    public RoutePoint(Double latitude, Double longitude, SavedRoute route) {
+    public RoutePoint(Double latitude, Double longitude, Double elevation,
+                      String name, Integer pointOrder, SavedRoute route) {
         this.latitude = latitude;
         this.longitude = longitude;
+        this.elevation = elevation;
+        this.name = name;
+        this.pointOrder = pointOrder;
         this.route = route;
     }
 
-    // Getter e Setter
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Double getLatitude() { return latitude; }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
 
-    public Double getLatitude() {
-        return latitude;
-    }
+    public Double getLongitude() { return longitude; }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
-    public void setLatitude(Double latitude) {
-        this.latitude = latitude;
-    }
+    public Double getElevation() { return elevation; }
+    public void setElevation(Double elevation) { this.elevation = elevation; }
 
-    public Double getLongitude() {
-        return longitude;
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public void setLongitude(Double longitude) {
-        this.longitude = longitude;
-    }
+    public Integer getPointOrder() { return pointOrder; }
+    public void setPointOrder(Integer pointOrder) { this.pointOrder = pointOrder; }
 
-    public SavedRoute getRoute() {
-        return route;
-    }
-
-    public void setRoute(SavedRoute route) {
-        this.route = route;
-    }
+    public SavedRoute getRoute() { return route; }
+    public void setRoute(SavedRoute route) { this.route = route; }
 }
