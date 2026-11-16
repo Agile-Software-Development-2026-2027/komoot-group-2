@@ -161,6 +161,89 @@ describe('MenuBar', () => {
       expect(host.querySelector('.auth-error')?.textContent).toContain('criteria');
     });
 
+    function openSignUp(): void {
+      click('.user-btn');
+      fixture.detectChanges();
+      click('.forgot-password:nth-of-type(2)'); // "Sign up"
+      fixture.detectChanges();
+    }
+
+    it('does not send the registration when the email is missing', async () => {
+      openSignUp();
+      type('#signin-username', 'mario');
+      type('#signin-password', 'Secret123');
+      click('.login-submit-btn');
+      await fixture.whenStable();
+
+      httpMock.expectNone(AUTH_ENDPOINTS.register);
+      expect(host.querySelector('.auth-error')?.textContent).toContain('email');
+    });
+
+    it('does not send the login when email or password are empty', async () => {
+      click('.user-btn');
+      fixture.detectChanges();
+      type('#login-email', 'mario@example.com');
+      click('.login-submit-btn');
+      await fixture.whenStable();
+
+      httpMock.expectNone(AUTH_ENDPOINTS.login);
+      expect(host.querySelector('.auth-error')?.textContent).toContain('email and password');
+    });
+
+    it('rejects passwords that miss one of the criteria', async () => {
+      const weak = ['Short1a', 'alllowercase1', 'ALLUPPERCASE1', 'NoNumbersHere'];
+      for (const password of weak) {
+        openSignUp();
+        type('#signin-email', 'mario@example.com');
+        type('#signin-username', 'mario');
+        type('#signin-password', password);
+        click('.login-submit-btn');
+        await fixture.whenStable();
+
+        httpMock.expectNone(AUTH_ENDPOINTS.register);
+        expect(host.querySelector('.auth-error')?.textContent).toContain('criteria');
+        fixture.componentInstance.closeLoginPopup();
+        fixture.detectChanges();
+      }
+    });
+
+    it('registers a valid user and logs them in automatically', async () => {
+      openSignUp();
+      type('#signin-email', ' mario@example.com ');
+      type('#signin-username', 'mario');
+      type('#signin-password', 'Secret123');
+      click('.login-submit-btn');
+      fixture.detectChanges();
+
+      const req = httpMock.expectOne(AUTH_ENDPOINTS.register);
+      expect(req.request.body).toEqual({
+        email: 'mario@example.com',
+        username: 'mario',
+        password: 'Secret123',
+      });
+      req.flush({ token: fakeJwt() });
+      await fixture.whenStable();
+
+      expect(authService.isLoggedIn()).toBe(true);
+      expect(host.querySelector('.login-popup')).toBeNull();
+    });
+
+    it('shows a message when the email is already registered', async () => {
+      openSignUp();
+      type('#signin-email', 'mario@example.com');
+      type('#signin-username', 'mario');
+      type('#signin-password', 'Secret123');
+      click('.login-submit-btn');
+
+      httpMock
+        .expectOne(AUTH_ENDPOINTS.register)
+        .flush(null, { status: 409, statusText: 'Conflict' });
+      await fixture.whenStable();
+
+      expect(host.querySelector('.auth-error')?.textContent).toContain('already exists');
+      expect(authService.isLoggedIn()).toBe(false);
+    });
+
     it('opens the login popup when a protected call is rejected', async () => {
       authService.requestLogin();
       await fixture.whenStable();
