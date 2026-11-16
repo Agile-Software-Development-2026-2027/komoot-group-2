@@ -127,7 +127,10 @@ export class MenuBar {
     }
     this.submitAuth(
       this.authService.register({ email: email.trim(), username: username.trim(), password }),
-      { 409: 'An account with this email already exists.' },
+      {
+        400: 'Invalid data: check email, username and password.',
+        409: 'An account with this email already exists.',
+      },
     );
   }
 
@@ -171,7 +174,7 @@ export class MenuBar {
   }
 
   public get hasMinLength(): boolean {
-    return this.registerPassword.length >= 6;
+    return this.registerPassword.length >= 8;
   }
 
   public get hasUppercase(): boolean {

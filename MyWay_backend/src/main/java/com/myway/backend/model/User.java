@@ -26,7 +26,7 @@ public class User {
     @Column(nullable = false, length = 50)
     private String username;
 
-    /** BCrypt hash (see PasswordUtil), never the plain password. */
+    /** BCrypt hash (see PasswordEncoder), never the plain password. */
     @Column(nullable = false, length = 255)
     private String password;
 }
