@@ -48,7 +48,7 @@ class RepositoryTests {
                 .build());
 
         Waypoint waypoint = waypoints.save(Waypoint.builder()
-                .category(WaypointCategory.PANORAMIC_VIEW)
+                .categories(Set.of(WaypointCategory.PANORAMIC_VIEW, WaypointCategory.PEAK))
                 .description("Nice view")
                 .publisher(alice)
                 .latitude(46.0)
