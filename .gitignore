@@ -12,3 +12,5 @@ Thumbs.db
 .conf
 CLAUDE.md
 GEMINI.md
+# Waypoint photos saved by the backend
+/uploads/

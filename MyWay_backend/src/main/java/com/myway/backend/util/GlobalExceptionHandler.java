@@ -1,5 +1,6 @@
 package com.myway.backend.util;
 
+import com.myway.backend.service.exceptions.InvalidWaypointException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -43,6 +44,11 @@ public class GlobalExceptionHandler{
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse(e.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidWaypointException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidWaypointException(InvalidWaypointException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorResponse(e.getMessage()));
     }
 
 }
