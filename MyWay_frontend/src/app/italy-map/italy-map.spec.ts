@@ -1,10 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as L from 'leaflet';
 
 import { ItalyMap } from './italy-map';
+import { WAYPOINT_ENDPOINTS } from '../config/api.config';
+import { AuthService } from '../services/auth.service';
+import { GpxService, type GpxWaypoint } from '../services/gpx.service';
+import { ITALY_CENTER } from '../services/location.service';
 import { RoutePlannerService } from '../services/route-planner.service';
 import { SidebarService } from '../services/sidebar.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
@@ -135,5 +139,102 @@ describe('ItalyMap', () => {
     expect(host.querySelector('.route-marker-end')).toBeTruthy();
     expect(host.querySelector('.route-panel')?.textContent).toContain('4.1 km · 55 min');
     expect(host.querySelector('.route-panel-btn.primary')?.textContent).toContain('Export GPX');
+  });
+
+  describe('public waypoints', () => {
+    let http: HttpTestingController;
+    const privateWp = (): GpxWaypoint => ({ lat: 46, lon: 11, desc: 'View', categories: ['peak'], photos: [], isPublic: false });
+
+    function publicLayers(): L.Marker[] {
+      return (component as unknown as { publicWaypointLayer: L.FeatureGroup }).publicWaypointLayer.getLayers() as L.Marker[];
+    }
+
+    function selectPrivateWaypoint(wp: GpxWaypoint): void {
+      component.renderGpx({ fileName: 'a.gpx', waypoints: [wp], tracks: [], allCoordinates: [[46, 11]] });
+      const marker = gpxLayers().find((layer): layer is L.Marker => layer instanceof L.Marker)!;
+      marker.fire('click', { latlng: marker.getLatLng() });
+    }
+
+    beforeEach(() => {
+      http = TestBed.inject(HttpTestingController);
+    });
+
+    it('should load the public waypoints within 200 km of the user at startup (center of Italy as fallback)', async () => {
+      await fixture.whenStable();
+      const req = http.expectOne((r) => r.url === WAYPOINT_ENDPOINTS.nearby);
+      expect(req.request.params.get('lat')).toBe(String(ITALY_CENTER.lat));
+      expect(req.request.params.get('lon')).toBe(String(ITALY_CENTER.lon));
+      expect(req.request.params.get('radiusKm')).toBe('200');
+
+      req.flush([{ id: 1, categories: ['FOUNTAIN'], description: 'Cold water', latitude: 42, longitude: 12, photos: [], publisher: 'bob' }]);
+
+      expect(publicLayers()).toHaveLength(1);
+      expect(host.querySelector('.komoot-pin.is-public')).toBeTruthy();
+    });
+
+    it('should show Make Public only for private waypoints', async () => {
+      selectPrivateWaypoint(privateWp());
+      await fixture.whenStable();
+      expect(host.querySelector('.btn-make-public')).toBeTruthy();
+      expect(host.querySelector('.btn-customize-waypoint')).toBeTruthy();
+
+      component.openWaypointDetails({ ...privateWp(), id: 3, isPublic: true });
+      await fixture.whenStable();
+      expect(host.querySelector('.btn-make-public')).toBeNull();
+      expect(host.querySelector('.btn-customize-waypoint')).toBeNull();
+      expect(host.querySelector('.btn-report-waypoint')).toBeTruthy();
+    });
+
+    it('should ask the user to log in instead of publishing when logged out', () => {
+      const auth = TestBed.inject(AuthService);
+      const loginSpy = vi.spyOn(auth, 'requestLogin');
+      selectPrivateWaypoint(privateWp());
+
+      component.makeWaypointPublic();
+
+      expect(loginSpy).toHaveBeenCalled();
+      http.expectNone(WAYPOINT_ENDPOINTS.waypoints);
+    });
+
+    it('should not publish a waypoint without categories', () => {
+      vi.spyOn(TestBed.inject(AuthService), 'isLoggedIn').mockReturnValue(true);
+      const notify = vi.spyOn(TestBed.inject(GpxService), 'showNotification');
+      selectPrivateWaypoint({ ...privateWp(), categories: [] });
+
+      component.makeWaypointPublic();
+
+      http.expectNone(WAYPOINT_ENDPOINTS.waypoints);
+      expect(notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'error' }));
+    });
+
+    it('should save the waypoint and turn its marker orange when made public', async () => {
+      vi.spyOn(TestBed.inject(AuthService), 'isLoggedIn').mockReturnValue(true);
+      const wp = privateWp();
+      selectPrivateWaypoint(wp);
+      expect(host.querySelector('.komoot-pin.is-public')).toBeNull();
+
+      component.makeWaypointPublic();
+      http.expectOne(WAYPOINT_ENDPOINTS.waypoints).flush({
+        id: 9, categories: ['PEAK'], description: 'View', latitude: 46, longitude: 11, photos: [], publisher: 'hiker',
+      });
+      await fixture.whenStable();
+
+      expect(wp).toMatchObject({ id: 9, isPublic: true });
+      expect(component.selectedWaypoint()).toMatchObject({ id: 9, isPublic: true });
+      expect(host.querySelector('.komoot-pin.is-public')).toBeTruthy();
+      expect(host.querySelector('.btn-make-public')).toBeNull();
+    });
+
+    it('should keep the waypoint private when the backend refuses it', () => {
+      vi.spyOn(TestBed.inject(AuthService), 'isLoggedIn').mockReturnValue(true);
+      const wp = privateWp();
+      selectPrivateWaypoint(wp);
+
+      component.makeWaypointPublic();
+      http.expectOne(WAYPOINT_ENDPOINTS.waypoints).flush('bad', { status: 400, statusText: 'Bad Request' });
+
+      expect(wp.isPublic).toBe(false);
+      expect(component.isPublishing()).toBe(false);
+    });
   });
 });
