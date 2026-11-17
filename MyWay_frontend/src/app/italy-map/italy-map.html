@@ -115,11 +115,11 @@
 }
 <!-- POP-UP waypoint adding info -->
 @if (isEditingWaypoint()) {
-  <div class="edit-modal-backdrop" (click)="closeEditModal()">
+  <div class="edit-modal-backdrop" (click)="cancelEdit()">
     <div class="edit-modal-card" (click)="$event.stopPropagation()">
       <div class="edit-modal-header">
         <h3>Custom Waypoint</h3>
-        <button type="button" class="btn-close-modal" (click)="closeEditModal()" aria-label="Close">&times;</button>
+        <button type="button" class="btn-close-modal" (click)="cancelEdit()" aria-label="Close">&times;</button>
       </div>
 
       <div class="edit-modal-body">
@@ -136,6 +136,18 @@
               </button>
             }
           </div>
+        </div>
+
+        <div class="edit-group">
+          <label class="edit-label" for="wp-name-input">Name:</label>
+          <input
+            id="wp-name-input"
+            type="text"
+            class="edit-textarea"
+            maxlength="100"
+            placeholder="Give this waypoint a name..."
+            [value]="editName()"
+            (input)="onNameInput($event)" />
         </div>
 
         <div class="edit-group">
@@ -170,8 +182,33 @@
       </div>
 
       <div class="edit-modal-footer">
-        <button type="button" class="btn-modal-cancel" (click)="closeEditModal()">Cancel</button>
-        <button type="button" class="btn-modal-save" (click)="saveWaypointChanges()">Save</button>
+        <button type="button" class="btn-modal-cancel" (click)="cancelEdit()">Cancel</button>
+        <button type="button" class="btn-modal-save" (click)="saveWaypointChanges()">
+          {{ isNewWaypoint() ? 'Keep private' : 'Save' }}
+        </button>
+        @if (isNewWaypoint()) {
+          <button type="button" class="btn-modal-save" [disabled]="isPublishing()" (click)="publishFromEdit()">
+            {{ isPublishing() ? 'Publishing…' : 'Publish' }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Confirmation before deleting a waypoint -->
+@if (confirmDeleteOpen()) {
+  <div class="edit-modal-backdrop" (click)="cancelDelete()">
+    <div class="edit-modal-card" role="alertdialog" aria-modal="true" aria-labelledby="delete-wp-title" (click)="$event.stopPropagation()">
+      <div class="edit-modal-header">
+        <h3 id="delete-wp-title">Are you sure?</h3>
+      </div>
+      <div class="edit-modal-body">
+        <p>This waypoint will be removed from the map.</p>
+      </div>
+      <div class="edit-modal-footer">
+        <button type="button" class="btn-modal-cancel" (click)="cancelDelete()">No</button>
+        <button type="button" class="btn-modal-save btn-modal-danger" (click)="confirmDelete()">Delete Waypoint</button>
       </div>
     </div>
   </div>
