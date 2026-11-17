@@ -2,6 +2,7 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  HostListener,
   Injector,
   OnDestroy,
   ViewChild,
@@ -17,6 +18,7 @@ import { WaypointApiService, NEARBY_RADIUS_KM } from '../services/waypoint-api.s
 import { LocationService } from '../services/location.service';
 import { AuthService } from '../services/auth.service';
 import { GpxService, ParsedGpx, GpxWaypoint, WaypointCategory, GpxTrack, RouteCategory, RouteDifficulty } from '../services/gpx.service';
+import { WaypointPlacementService } from '../services/waypoint-placement.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from '../services/route-planner.service';
 import { SIDEBAR_MAP_OVERLAP_PX, SidebarService } from '../services/sidebar.service';
@@ -217,6 +219,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private readonly waypointApi = inject(WaypointApiService);
   private readonly location = inject(LocationService);
   private readonly auth = inject(AuthService);
+  private readonly placement = inject(WaypointPlacementService);
   protected readonly routePlanner = inject(RoutePlannerService);
 
   /** When active, clicks on the map set the start and destination of a route */
@@ -249,6 +252,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   /** Public waypoints loaded from the backend (kept apart so loading a GPX file does not clear them) */
   private publicWaypointLayer?: L.FeatureGroup;
   private nearbySubscription?: Subscription;
+  /** Waypoints created by the user with "Add Waypoint" */
+  private newWaypointLayer?: L.FeatureGroup;
+  /** Marker that follows the mouse while a new waypoint is being placed */
+  private ghostMarker?: L.Marker;
   private publishSubscription?: Subscription;
 
   // Italy Border [N - S - E - W]
@@ -277,6 +284,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
     // When click on the map the Map Style list will close; in planning mode it sets a route point
     this.map.on('click', (e: L.LeafletMouseEvent) => {
+      if (this.placement.isPlacing()) {
+        this.placeWaypoint(e.latlng);
+        return;
+      }
       this.toggleStylePanel(false);
       this.closeWaypointDetails();
       if (!this.planningMode()) {
@@ -336,6 +347,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       }
     });
     this.publicWaypointLayer = L.featureGroup().addTo(this.map);
+    this.newWaypointLayer = L.featureGroup().addTo(this.map);
     void this.loadNearbyWaypoints();
 
     // Update the tracks when the user changes color or thickness ("Custom Route" in the sidebar).
@@ -351,6 +363,112 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       }
       this.routeLayer?.setStyle(changes);
     });
+
+    // "Add Waypoint" in the menu: a marker follows the mouse until the user clicks
+    effect(
+      () => {
+        if (this.placement.isPlacing()) {
+          untracked(() => this.beginPlacing());
+        } else {
+          untracked(() => this.endPlacing());
+        }
+      },
+      { injector: this.injector },
+    );
+  }
+
+  private readonly onPlacingMouseMove = (e: L.LeafletMouseEvent): void => {
+    if (!this.map) return;
+    if (!this.ghostMarker) {
+      this.ghostMarker = L.marker(e.latlng, {
+        icon: createWaypointIcon({ lat: e.latlng.lat, lon: e.latlng.lng, isPublic: false }),
+        interactive: false, // clicks go through to the map
+        keyboard: false,
+        opacity: 0.85,
+      }).addTo(this.map);
+    } else {
+      this.ghostMarker.setLatLng(e.latlng);
+    }
+  };
+
+  private beginPlacing(): void {
+    if (!this.map) return;
+    this.sidebar.close();
+    this.closeWaypointDetails();
+    this.closeEditModal();
+    this.map.getContainer().classList.add('placing-waypoint');
+    this.map.on('mousemove', this.onPlacingMouseMove);
+  }
+
+  private endPlacing(): void {
+    if (!this.map) return;
+    this.map.off('mousemove', this.onPlacingMouseMove);
+    this.map.getContainer().classList.remove('placing-waypoint');
+    this.ghostMarker?.remove();
+    this.ghostMarker = undefined;
+  }
+
+  /** The user clicked: the waypoint is put on the map and its information form opens. */
+  private placeWaypoint(latlng: L.LatLng): void {
+    if (!this.newWaypointLayer) return;
+    this.placement.stop();
+
+    const wp: GpxWaypoint = { lat: latlng.lat, lon: latlng.lng, categories: [], photos: [], isPublic: false };
+    const marker = L.marker(latlng, { icon: createWaypointIcon(wp) });
+    marker.on('click', (e) => {
+      L.DomEvent.stopPropagation(e);
+      this.activeMarker = marker;
+      this.activeWaypoint = wp;
+      this.openWaypointDetails(wp);
+    });
+    marker.addTo(this.newWaypointLayer);
+
+    this.activeMarker = marker;
+    this.activeWaypoint = wp;
+    this.isNewWaypoint.set(true);
+    this.openWaypointDetails(wp);
+    this.openEditModal();
+  }
+
+  @HostListener('document:keydown.escape')
+  public onEscape(): void {
+    this.placement.stop();
+    this.confirmDeleteOpen.set(false);
+  }
+
+  /** True while the "Are you sure?" pop-up for deleting a waypoint is shown */
+  public readonly confirmDeleteOpen = signal(false);
+
+  /** Canc on a selected private waypoint asks for confirmation (public ones cannot be deleted). */
+  @HostListener('document:keydown.delete', ['$event'])
+  public onDeleteKey(event: Event): void {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return; // typing
+    const wp = this.selectedWaypoint();
+    if (!wp || wp.isPublic || this.isEditingWaypoint() || this.confirmDeleteOpen()) return;
+    this.confirmDeleteOpen.set(true);
+  }
+
+  public cancelDelete(): void {
+    this.confirmDeleteOpen.set(false);
+  }
+
+  /** Removes the selected private waypoint from the map (and from the loaded GPX data). */
+  public confirmDelete(): void {
+    const wp = this.selectedWaypoint();
+    this.confirmDeleteOpen.set(false);
+    if (!wp || wp.isPublic) return;
+
+    this.activeMarker?.remove();
+    const target = this.activeWaypoint ?? wp;
+    const waypoints = this.gpxService.getCurrentGpx()?.waypoints;
+    const index = waypoints ? waypoints.indexOf(target) : -1;
+    if (waypoints && index >= 0) waypoints.splice(index, 1);
+
+    this.activeMarker = undefined;
+    this.activeWaypoint = undefined;
+    this.closeWaypointDetails();
+    this.gpxService.showNotification({ type: 'success', message: 'Waypoint deleted.' });
   }
 
   /** Turns route planning on/off; the planned route stays on the map when turned off */
@@ -533,7 +651,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   //POP-UP Adding Info
   public readonly availableCategories = AVAILABLE_CATEGORIES;
   public isEditingWaypoint = signal<boolean>(false);
+  /** True while the form is filling in a waypoint that has just been placed (not saved yet) */
+  public isNewWaypoint = signal<boolean>(false);
   public editCategories = signal<WaypointCategory[]>([]);
+  public editName = signal<string>('');
   public editDesc = signal<string>('');
   public editPhotos = signal<string[]>([]);
   private activeMarker?: L.Marker;
@@ -544,6 +665,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     const wp = this.selectedWaypoint();
     if (!wp) return;
     this.editCategories.set(wp.categories ? [...wp.categories] : []);
+    this.editName.set(wp.name || '');
     this.editDesc.set(wp.desc || '');
     this.editPhotos.set(wp.photos ? [...wp.photos] : []);
     this.isEditingWaypoint.set(true);
@@ -553,6 +675,33 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.isEditingWaypoint.set(false);
   }
 
+  /** Cancel in the form: a waypoint that was just placed is removed from the map again. */
+  public cancelEdit(): void {
+    if (this.isNewWaypoint()) {
+      if (this.activeMarker) this.newWaypointLayer?.removeLayer(this.activeMarker);
+      this.activeMarker = undefined;
+      this.activeWaypoint = undefined;
+      this.isNewWaypoint.set(false);
+      this.closeWaypointDetails();
+    }
+    this.closeEditModal();
+  }
+
+  /** "Publish" in the form: saves the information and sends the waypoint to the backend. */
+  public publishFromEdit(): void {
+    if (!this.auth.isLoggedIn()) {
+      this.gpxService.showNotification({ type: 'error', message: 'Log in to publish a waypoint.' });
+      this.auth.requestLogin();
+      return;
+    }
+    if (this.editCategories().length === 0) {
+      this.gpxService.showNotification({ type: 'error', message: 'Choose at least one category to publish.' });
+      return;
+    }
+    this.saveWaypointChanges();
+    this.makeWaypointPublic();
+  }
+
   public toggleCategory(cat: WaypointCategory): void {
     const current = this.editCategories();
     if (current.includes(cat)) {
@@ -560,6 +709,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     } else {
       this.editCategories.set([...current, cat]);
     }
+  }
+
+  public onNameInput(event: Event): void {
+    this.editName.set((event.target as HTMLInputElement).value);
   }
 
   public onDescInput(event: Event): void {
@@ -602,6 +755,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     if (!wp) return;
 
     wp.categories = this.editCategories();
+    wp.name = this.editName().trim() || undefined;
     wp.desc = this.editDesc();
     wp.photos = this.editPhotos();
 
@@ -611,6 +765,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       this.activeMarker.setIcon(createWaypointIcon(wp));
     }
 
+    this.isNewWaypoint.set(false);
     this.closeEditModal();
   }
 
@@ -642,6 +797,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         for (const target of new Set([wp, this.activeWaypoint])) {
           if (!target) continue;
           target.id = saved.id;
+          target.name = saved.name;
           target.isPublic = true;
           target.photos = saved.photos;
         }
@@ -789,6 +945,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.gpxSubscription?.unsubscribe();
     this.styleSubscription?.unsubscribe();
     this.nearbySubscription?.unsubscribe();
+    this.placement.stop();
     this.publishSubscription?.unsubscribe();
     this.publicWaypointLayer = undefined;
     this.map?.remove();

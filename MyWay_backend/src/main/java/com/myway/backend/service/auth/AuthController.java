@@ -16,6 +16,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/*
+    test@test.com
+    Test1234
+*/
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
