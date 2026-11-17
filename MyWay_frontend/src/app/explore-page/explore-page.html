@@ -1,0 +1,35 @@
+<section class="explore">
+  <h2 class="explore-title">Explore routes</h2>
+
+  @if (loading()) {
+    <p class="explore-message">Loading…</p>
+  } @else if (error(); as message) {
+    <p class="explore-message explore-error" role="alert">{{ message }}</p>
+  } @else if (routes().length === 0) {
+    <p class="explore-message">No public routes yet.</p>
+  } @else {
+    <div class="route-grid">
+      @for (route of routes(); track route.id) {
+        <a class="route-card" [routerLink]="['/explore', route.id]">
+          @if (pictureSrc(route); as src) {
+            <img class="route-card-img" [src]="src" [alt]="route.name" loading="lazy" />
+          } @else {
+            <div class="route-card-img route-card-noimg">No picture</div>
+          }
+          <div class="route-card-body">
+            <h3 class="route-card-name">{{ route.name }}</h3>
+            <p class="route-card-publisher">by {{ route.publisherUsername }}</p>
+            <div class="route-card-badges">
+              <span class="badge">{{ route.category }}</span>
+              <span class="badge">{{ route.difficulty }}</span>
+            </div>
+            <p class="route-card-stats">
+              {{ formatDistance(route.distanceMeters) }} ·
+              {{ formatTime(route.estimatedTimeInMinutes) }}
+            </p>
+          </div>
+        </a>
+      }
+    </div>
+  }
+</section>

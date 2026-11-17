@@ -104,7 +104,7 @@
 
         <!-- Color Info Track -->
         @let color = routeColor();
-        @let weight = trackStyle().weight;
+        @let weight = routeWeight();
         <div class="route-subsection">
           <h4 class="subsection-title">Look on the map</h4>
           <div class="track-style-preview-box">
@@ -122,6 +122,10 @@
         <!-- Custom Route -->
         <button type="button" class="btn-primary" (click)="openEditTrackModal()">
           Custom Route
+        </button>
+
+        <button type="button" class="btn-secondary" (click)="openPublishModal()">
+          Publish Route
         </button>
       } @else {
         <div class="empty-state">
@@ -160,7 +164,7 @@
       </div>
 
       <div class="edit-modal-body">
-        @if (summary()?.isGpx) {
+        
           <div class="edit-group">
             <label class="edit-label" for="track-name-input">Route Name:</label>
             <input
@@ -200,7 +204,7 @@
               }
             </div>
           </div>
-        }
+        
 
         <div class="edit-group">
           <label class="edit-label">Track Color:</label>
@@ -239,6 +243,73 @@
       <div class="edit-modal-footer">
         <button type="button" class="btn-modal-cancel" (click)="closeEditTrackModal()">Cancel</button>
         <button type="button" class="btn-modal-save" (click)="saveTrackChanges()">Save</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- pop up publish route -->
+@if (isPublishOpen()) {
+  <div class="edit-modal-backdrop" (click)="closePublishModal()">
+    <div class="edit-modal-card" (click)="$event.stopPropagation()">
+      <div class="edit-modal-header">
+        <h3>Publish Route</h3>
+        <button type="button" class="btn-close-modal" (click)="closePublishModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="edit-modal-body">
+        @if (summary(); as route) {
+          <p class="publish-summary">
+            <strong>{{ route.name }}</strong>
+            · {{ route.category }} · {{ route.difficulty }}
+          </p>
+        }
+
+        <div class="edit-group">
+          <label class="edit-label">Visibility:</label>
+          <div class="category-select-grid">
+            <button
+              type="button"
+              class="category-select-chip"
+              [class.selected]="publishIsPublic()"
+              (click)="publishIsPublic.set(true)">
+              Public
+            </button>
+            <button
+              type="button"
+              class="category-select-chip"
+              [class.selected]="!publishIsPublic()"
+              (click)="publishIsPublic.set(false)">
+              Private
+            </button>
+          </div>
+        </div>
+
+        <div class="edit-group">
+          <label class="edit-label" for="publish-picture-input">Route picture (optional):</label>
+          <input
+            id="publish-picture-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            (change)="onPublishPictureSelected($event)" />
+          @if (publishPicture(); as picture) {
+            <div class="publish-file-row">
+              <span>{{ picture.name }}</span>
+              <button type="button" class="btn-modal-cancel" (click)="removePublishPicture()">Remove</button>
+            </div>
+          }
+        </div>
+
+        @if (publishError(); as error) {
+          <p class="publish-error" role="alert">{{ error }}</p>
+        }
+      </div>
+
+      <div class="edit-modal-footer">
+        <button type="button" class="btn-modal-cancel" [disabled]="isSending()" (click)="closePublishModal()">Cancel</button>
+        <button type="button" class="btn-modal-save" [disabled]="isSending()" (click)="confirmPublish()">
+          {{ isSending() ? 'Publishing…' : 'Publish' }}
+        </button>
       </div>
     </div>
   </div>
