@@ -312,7 +312,18 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         const update = this.sidebar.trackColorUpdate();
         if (update) {
           const lines = this.trackLines.get(update.track);
-          lines?.forEach((line) => line.setStyle({ color: update.color }));
+          lines?.forEach((line) => line.setStyle({ color: update.color, weight: update.weight }));
+        }
+      },
+      { injector: this.injector },
+    );
+
+    // Style of the planned route, set from "Custom Route" in the sidebar
+    effect(
+      () => {
+        const update = this.sidebar.plannedStyleUpdate();
+        if (update) {
+          this.routeLayer?.setStyle({ color: update.color, weight: update.weight });
         }
       },
       { injector: this.injector },
@@ -358,7 +369,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.map.attributionControl.removeAttribution(ROUTING_ATTRIBUTION);
 
     if (route) {
-      const { color, weight } = this.trackStyleHandler.getCurrentStyle();
+      const { color, weight } = this.sidebar.plannedDetails();
       this.routeLayer = L.polyline(
         route.points.map((p): L.LatLngTuple => [p.lat, p.lon]),
         { color, weight, opacity: 0.85, lineJoin: 'round' },
@@ -393,10 +404,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.trackLines.clear();
 
     // 1. Draw tracks and routes
-    const{weight}=this.trackStyleHandler.getCurrentStyle();
     for (const track of data.tracks) {
       if (!track.category) track.category = 'hiking';
       if (!track.color) track.color = ROUTE_CATEGORY_CONFIG[track.category].defaultColor;
+      if (track.weight === undefined) track.weight = this.trackStyleHandler.getCurrentStyle().weight;
       if (track.distanceMeters === undefined) track.distanceMeters = calculateTrackDistanceMeters(track);
       if (track.estimatedDurationSeconds === undefined) {
         track.estimatedDurationSeconds = calculateEstimatedDuration(track.distanceMeters, track.category);
@@ -409,7 +420,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         if (seg.points.length > 0) {
           const polyline = L.polyline(seg.points, {
             color: track.color,
-            weight: weight,
+            weight: track.weight,
             opacity: 0.85,
             lineJoin: 'round',
           });
@@ -767,6 +778,11 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       onClick();
     });
     return btn;
+  }
+
+  /** Called when the map becomes visible again after being hidden by another page */
+  public refreshSize(): void {
+    this.map?.invalidateSize();
   }
 
   ngOnDestroy(): void {

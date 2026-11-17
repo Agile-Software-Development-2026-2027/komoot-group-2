@@ -286,3 +286,11 @@
   background: #4caf50;
   border: 2px solid #1f2a44;
 }
+
+a.menu-btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}

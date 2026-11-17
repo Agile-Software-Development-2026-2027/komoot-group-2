@@ -16,9 +16,18 @@ spring:
       ddl-auto: validate
     open-in-view: false
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+
   flyway:
     enabled: true
     locations: classpath:db/migration
 
 server:
   port: 8080
+
+myway:
+  storage:
+    base-dir: ${MYWAY_STORAGE_DIR:uploads/routes}

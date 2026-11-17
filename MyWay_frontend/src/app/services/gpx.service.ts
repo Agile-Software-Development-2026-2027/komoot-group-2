@@ -36,6 +36,7 @@ export interface GpxTrack {
   color?: string;
   distanceMeters?: number;
   estimatedDurationSeconds?: number;
+  weight?: number;
 }
 
 export interface ParsedGpx {
@@ -43,6 +44,8 @@ export interface ParsedGpx {
   waypoints: GpxWaypoint[];
   tracks: GpxTrack[];
   allCoordinates: [number, number][];
+  /** Original file content, kept to publish the route */
+  sourceXml?: string;
 }
 
 export interface GpxNotification {
@@ -74,6 +77,7 @@ export class GpxService {
   public async loadGpxFile(file: File): Promise<ParsedGpx> {
     try {
       const { parsed, xmlText } = await this.readAndParse(file);
+      parsed.sourceXml = xmlText;
       this.gpxExportService.loadFromGpxXml(xmlText, file.name.replace(/\.gpx$/i, ''));
 
       this.currentGpxSubject.next(parsed);
