@@ -2,14 +2,13 @@
 -- Flyway applies this once; never edit it after it has been merged: add a V2__..., V3__... file instead.
 --
 -- Notes:
---  * "user" is a reserved word in PostgreSQL, so the table is called "users".
 --  * ENUM columns are stored as VARCHAR and mapped to Java enums (@Enumerated(EnumType.STRING)),
 --    so adding a new enum value does not require a migration.
 
 CREATE TABLE users (
     email    VARCHAR(255) PRIMARY KEY,
     username VARCHAR(50)  NOT NULL,
-    password VARCHAR(255) NOT NULL -- BCrypt hash, never the plain password
+    password VARCHAR(255) NOT NULL -- BCrypt hash
 );
 
 CREATE TABLE route (

@@ -1,0 +1,73 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable, inject } from '@angular/core';
+import { Observable, map } from 'rxjs';
+import { API_BASE_URL, WAYPOINT_ENDPOINTS } from '../config/api.config';
+import type { GpxWaypoint, WaypointCategory } from './gpx.service';
+import type { LatLon } from './route-planner.service';
+
+/** Radius used to load the public waypoints around the user. */
+export const NEARBY_RADIUS_KM = 200;
+
+/** Waypoint as the backend sends it (WaypointDTO). */
+interface WaypointResponse {
+  id: number;
+  categories: string[];
+  description: string | null;
+  latitude: number;
+  longitude: number;
+  photos: string[];
+  publisher: string;
+}
+
+/** Frontend category ('panoramic view') <-> backend enum (PANORAMIC_VIEW). */
+export function toBackendCategory(category: WaypointCategory): string {
+  return category.toUpperCase().replace(/ /g, '_');
+}
+
+export function fromBackendCategory(category: string): WaypointCategory {
+  return category.toLowerCase().replace(/_/g, ' ') as WaypointCategory;
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class WaypointApiService {
+  private readonly http = inject(HttpClient);
+
+  /** Saves the waypoint on the backend as a public one (the user must be logged in). */
+  publish(wp: GpxWaypoint): Observable<GpxWaypoint> {
+    const body = {
+      categories: (wp.categories ?? []).map(toBackendCategory),
+      description: wp.desc ?? '',
+      latitude: wp.lat,
+      longitude: wp.lon,
+      // Only the photos picked in this browser (data URLs) need uploading
+      photos: (wp.photos ?? []).filter((photo) => photo.startsWith('data:')),
+    };
+    return this.http.post<WaypointResponse>(WAYPOINT_ENDPOINTS.waypoints, body).pipe(map(toGpxWaypoint));
+  }
+
+  /** Public waypoints within radiusKm of a point. */
+  loadNearby(center: LatLon, radiusKm = NEARBY_RADIUS_KM): Observable<GpxWaypoint[]> {
+    const params = new HttpParams()
+      .set('lat', center.lat)
+      .set('lon', center.lon)
+      .set('radiusKm', radiusKm);
+    return this.http
+      .get<WaypointResponse[]>(WAYPOINT_ENDPOINTS.nearby, { params })
+      .pipe(map((list) => list.map(toGpxWaypoint)));
+  }
+}
+
+function toGpxWaypoint(w: WaypointResponse): GpxWaypoint {
+  return {
+    id: w.id,
+    lat: w.latitude,
+    lon: w.longitude,
+    desc: w.description ?? undefined,
+    categories: w.categories.map(fromBackendCategory),
+    photos: w.photos.map((url) => (url.startsWith('/') ? `${API_BASE_URL}${url}` : url)),
+    publisher: w.publisher,
+    isPublic: true,
+  };
+}
