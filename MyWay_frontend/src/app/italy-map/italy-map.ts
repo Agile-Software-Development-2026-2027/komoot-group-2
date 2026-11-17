@@ -245,7 +245,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   /** Visible lines of each rendered GPX track (without the invisible click areas) */
   private readonly trackLines = new Map<GpxTrack, L.Polyline[]>();
   private gpxSubscription?: Subscription;
-  private styleSubscription?: Subscription;
   /** Public waypoints loaded from the backend (kept apart so loading a GPX file does not clear them) */
   private publicWaypointLayer?: L.FeatureGroup;
   private nearbySubscription?: Subscription;
@@ -326,20 +325,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     });
     this.publicWaypointLayer = L.featureGroup().addTo(this.map);
     void this.loadNearbyWaypoints();
-
-    // Update the tracks when the user changes color or thickness ("Custom Route" in the sidebar).
-    // Only what changed is applied, so a new thickness keeps each GPX track's category color.
-    this.styleSubscription = this.trackStyleHandler.style$.pipe(pairwise()).subscribe(([previous, style]) => {
-      const changes: L.PathOptions = {};
-      if (style.color !== previous.color) changes.color = style.color;
-      if (style.weight !== previous.weight) changes.weight = style.weight;
-
-      for (const [track, lines] of this.trackLines) {
-        if (changes.color) track.color = changes.color; // keep the sidebar in sync with the map
-        lines.forEach((line) => line.setStyle(changes)); // not the wide invisible click areas
-      }
-      this.routeLayer?.setStyle(changes);
-    });
   }
 
   /** Turns route planning on/off; the planned route stays on the map when turned off */
