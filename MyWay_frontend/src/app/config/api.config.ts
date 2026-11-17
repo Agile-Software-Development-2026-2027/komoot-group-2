@@ -13,6 +13,14 @@ export const WAYPOINT_ENDPOINTS = {
   waypoints: `${API_BASE_URL}/api/waypoints`,
   /** GET ?lat=&lon=&radiusKm= returns the public waypoints around a point. */
   nearby: `${API_BASE_URL}/api/waypoints/nearby`,
+} as const
+/** Backend route endpoints. */
+export const ROUTE_ENDPOINTS = {
+  publish: `${API_BASE_URL}/api/routes/publish`,
+  publicList: `${API_BASE_URL}/api/routes/public`,
+  mine: `${API_BASE_URL}/api/routes/mine`,
+  publicDetails: (id: number) => `${API_BASE_URL}/api/routes/public/${id}`,
+  report: (id: number) => `${API_BASE_URL}/api/routes/${id}/report`,
 } as const;
 
 /** True when the request targets our backend (and not a third-party API such as OSRM or Open-Meteo). */
