@@ -384,6 +384,31 @@
   transition: background 0.15s ease, transform 0.1s ease;
 }
 
+.btn-make-public {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn-make-public:hover:not(:disabled) {
+  background: #c2410c;
+  transform: translateY(-1px);
+}
+
+.btn-make-public:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .btn-customize-waypoint:hover {
   background: #1d4ed8;
   transform: translateY(-1px);

@@ -83,11 +83,14 @@
     </div>
     }
 
-    <!-- custom button (SCRUM-53) -->
+    <!-- Private waypoints can be edited and made public; public ones can only be reported -->
     <div class="sidebar-actions">
       @if (!wp.isPublic) {
       <button type="button" class="btn-customize-waypoint" (click)="openEditModal()">
         Custom Waypoint
+      </button>
+      <button type="button" class="btn-make-public" [disabled]="isPublishing()" (click)="makeWaypointPublic()">
+        {{ isPublishing() ? 'Publishing…' : 'Make Public' }}
       </button>
       } @else {
       <button type="button" class="btn-report-waypoint" (click)="reportWaypoint()">

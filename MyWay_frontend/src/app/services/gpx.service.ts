@@ -14,6 +14,8 @@ export interface GpxWaypoint {
   ele?: number;
   categories?: WaypointCategory[];
   photos?: string[];
+  /** Backend id, set once the waypoint has been published. */
+  id?: number;
   /** True when the waypoint was published by a user and is visible to everyone. Private (false) by default. */
   isPublic: boolean;
   /** Username of the user who published the waypoint (only for public waypoints). */
