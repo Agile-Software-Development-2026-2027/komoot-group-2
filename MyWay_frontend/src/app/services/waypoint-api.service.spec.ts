@@ -41,6 +41,7 @@ describe('WaypointApiService', () => {
       description: 'Nice view',
       latitude: 46,
       longitude: 11,
+      name: null,
       photos: ['data:image/png;base64,AAAA'],
     });
     req.flush({
