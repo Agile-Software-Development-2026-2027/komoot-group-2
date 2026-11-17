@@ -52,12 +52,19 @@ erDiagram
         VARCHAR_255 reporter_email PK, FK
     }
 
+    SAVED_ROUTE_BY_USER {
+        VARCHAR_255 email PK, FK
+        VARCHAR_255 saved_route_as_gpx PK "path of the .gpx file on disk"
+    }
+
     %% Relationships
     USERS ||--o{ ROUTE : "publishes"
     USERS ||--o{ WAYPOINT : "publishes"
 
     WAYPOINT ||--|{ WAYPOINT_CATEGORIES : "has_categories"
     WAYPOINT ||--o{ WAYPOINT_PICTURES : "has_pictures"
+
+    USERS ||--o{ SAVED_ROUTE_BY_USER : "saves"
 
     USERS ||--o{ REPORT_ROUTE : "reports_route"
     ROUTE ||--o{ REPORT_ROUTE : "is_reported_in"
