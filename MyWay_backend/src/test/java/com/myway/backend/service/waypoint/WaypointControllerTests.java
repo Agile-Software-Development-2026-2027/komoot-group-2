@@ -74,7 +74,7 @@ class WaypointControllerTests {
                 .andExpect(jsonPath("$.photos[0]", startsWith("/api/waypoints/pictures/")))
                 .andReturn().getResponse().getContentAsString();
 
-        Waypoint saved = waypoints.findAll().get(0);
+        Waypoint saved = waypoints.findAll().getFirst();
         assertThat(saved.isPublic()).isTrue();
         assertThat(saved.getPublisher().getEmail()).isEqualTo("hiker@example.com");
         assertThat(saved.getCategories()).containsExactlyInAnyOrder(WaypointCategory.PEAK, WaypointCategory.FOUNTAIN);
