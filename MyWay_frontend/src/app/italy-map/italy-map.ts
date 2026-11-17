@@ -772,7 +772,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.gpxSubscription?.unsubscribe();
-    this.styleSubscription?.unsubscribe();
     this.nearbySubscription?.unsubscribe();
     this.publishSubscription?.unsubscribe();
     this.publicWaypointLayer = undefined;
