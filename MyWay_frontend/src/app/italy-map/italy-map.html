@@ -27,6 +27,13 @@
 
   <div class="sidebar-body">
 
+    @if (wp.isPublic) {
+    <div class="sidebar-publisher">
+      <span class="meta-label">Publisher: </span>
+      <span class="meta-value">{{ wp.publisher }}</span>
+    </div>
+    }
+
     <!-- Badge Categories -->
     @if (wp.categories && wp.categories.length > 0) {
     <div class="sidebar-categories">
@@ -78,9 +85,15 @@
 
     <!-- custom button (SCRUM-53) -->
     <div class="sidebar-actions">
+      @if (!wp.isPublic) {
       <button type="button" class="btn-customize-waypoint" (click)="openEditModal()">
         Custom Waypoint
       </button>
+      } @else {
+      <button type="button" class="btn-report-waypoint" (click)="reportWaypoint()">
+        Report
+      </button>
+      }
     </div>
 
   </div>
