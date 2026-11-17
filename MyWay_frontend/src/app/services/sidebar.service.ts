@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
 import { ElevationStats, computeElevationStats } from '../utils/route-stats';
 import { ElevationService } from './elevation.service';
-import { GpxService, GpxTrack, GpxWaypoint } from './gpx.service';
+import { GpxService, GpxTrack, GpxWaypoint, RouteCategory, RouteDifficulty } from './gpx.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from './route-planner.service';
 
 /**
@@ -20,6 +20,25 @@ const MIN_FILE_ELEVATIONS = 2;
 export type SidebarRoute =
   | { kind: 'gpx'; track: GpxTrack; waypoints: GpxWaypoint[] }
   | { kind: 'planned'; route: PlannedRoute };
+
+
+/** Customization of a route created with the route planner (kept apart from the OSRM result) */
+export interface PlannedRouteDetails {
+  name: string;
+  category: RouteCategory;
+  difficulty: RouteDifficulty;
+  color: string;
+  weight: number;
+}
+
+export const DEFAULT_PLANNED_DETAILS: PlannedRouteDetails = {
+  name: 'MyWay Route',
+  category: 'hiking',
+  difficulty: 'intermediate',
+  color: '#10b981',
+  weight: 5,
+};
+
 
 /** Where the elevation stats come from: the GPX file itself or the Open-Meteo terrain model */
 export type ElevationSource = 'gpx' | 'open-meteo';
@@ -43,7 +62,9 @@ export class SidebarService {
   readonly isOpen = signal(false);
   readonly selectedRoute = signal<SidebarRoute | null>(null);
   readonly elevation = signal<ElevationState>({ status: 'idle' });
-  readonly trackColorUpdate = signal<{ track: GpxTrack; color: string } | null>(null);
+  readonly trackColorUpdate = signal<{ track: GpxTrack; color: string; weight: number } | null>(null);
+  readonly plannedDetails = signal<PlannedRouteDetails>({ ...DEFAULT_PLANNED_DETAILS });
+  readonly plannedStyleUpdate = signal<{ color: string; weight: number } | null>(null);
 
   private elevationRequest?: Subscription;
   /** Elevation already looked up per track/route, so selecting it again does not call the API again */
@@ -98,17 +119,28 @@ export class SidebarService {
     this.loadElevation(route, route.points);
   }
   updateGpxTrack(track: GpxTrack): void {
-    this.trackColorUpdate.set({ track, color: track.color || '#10b981' });
+    this.trackColorUpdate.set({
+      track,
+      color: track.color || '#10b981',
+      weight: track.weight ?? 5,
+    });
     const current = this.selectedRoute();
     if (current?.kind === 'gpx' && current.track === track) {
       this.selectedRoute.set({ kind: 'gpx', track, waypoints: current.waypoints });
     }
   }
 
+  updatePlannedDetails(details: PlannedRouteDetails): void {
+    this.plannedDetails.set({ ...details });
+    this.plannedStyleUpdate.set({ color: details.color, weight: details.weight });
+  }
+
   clearSelection(): void {
     this.elevationRequest?.unsubscribe();
     this.selectedRoute.set(null);
     this.elevation.set({ status: 'idle' });
+    this.plannedDetails.set({ ...DEFAULT_PLANNED_DETAILS });
+    this.plannedStyleUpdate.set(null);
   }
 
   private select(route: SidebarRoute): void {

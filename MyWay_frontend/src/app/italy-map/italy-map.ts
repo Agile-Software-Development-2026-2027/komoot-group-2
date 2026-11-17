@@ -11,7 +11,7 @@ import {
   signal,
   untracked
 } from '@angular/core';
-import { Subscription, pairwise } from 'rxjs';
+import { Subscription } from 'rxjs';
 import * as L from 'leaflet';
 import { GpxService, ParsedGpx, GpxWaypoint, WaypointCategory, GpxTrack, RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { TrackStyleHandler } from '../services/track-style-handler.service';
@@ -238,7 +238,6 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   /** Visible lines of each rendered GPX track (without the invisible click areas) */
   private readonly trackLines = new Map<GpxTrack, L.Polyline[]>();
   private gpxSubscription?: Subscription;
-  private styleSubscription?: Subscription;
 
   // Italy Border [N - S - E - W]
   private readonly italyBounds = L.latLngBounds([36.4, 6.7], [47.1, 18.6]);
@@ -301,7 +300,18 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         const update = this.sidebar.trackColorUpdate();
         if (update) {
           const lines = this.trackLines.get(update.track);
-          lines?.forEach((line) => line.setStyle({ color: update.color }));
+          lines?.forEach((line) => line.setStyle({ color: update.color, weight: update.weight }));
+        }
+      },
+      { injector: this.injector },
+    );
+
+    // Style of the planned route, set from "Custom Route" in the sidebar
+    effect(
+      () => {
+        const update = this.sidebar.plannedStyleUpdate();
+        if (update) {
+          this.routeLayer?.setStyle({ color: update.color, weight: update.weight });
         }
       },
       { injector: this.injector },
@@ -313,19 +323,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         this.renderGpx(gpx);
       }
     });
-    // Update the tracks when the user changes color or thickness ("Custom Route" in the sidebar).
-    // Only what changed is applied, so a new thickness keeps each GPX track's category color.
-    this.styleSubscription = this.trackStyleHandler.style$.pipe(pairwise()).subscribe(([previous, style]) => {
-      const changes: L.PathOptions = {};
-      if (style.color !== previous.color) changes.color = style.color;
-      if (style.weight !== previous.weight) changes.weight = style.weight;
-
-      for (const [track, lines] of this.trackLines) {
-        if (changes.color) track.color = changes.color; // keep the sidebar in sync with the map
-        lines.forEach((line) => line.setStyle(changes)); // not the wide invisible click areas
-      }
-      this.routeLayer?.setStyle(changes);
-    });
+  
   }
 
   /** Turns route planning on/off; the planned route stays on the map when turned off */
@@ -344,7 +342,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.map.attributionControl.removeAttribution(ROUTING_ATTRIBUTION);
 
     if (route) {
-      const { color, weight } = this.trackStyleHandler.getCurrentStyle();
+      const { color, weight } = this.sidebar.plannedDetails();
       this.routeLayer = L.polyline(
         route.points.map((p): L.LatLngTuple => [p.lat, p.lon]),
         { color, weight, opacity: 0.85, lineJoin: 'round' },
@@ -379,10 +377,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.trackLines.clear();
 
     // 1. Draw tracks and routes
-    const{weight}=this.trackStyleHandler.getCurrentStyle();
     for (const track of data.tracks) {
       if (!track.category) track.category = 'hiking';
       if (!track.color) track.color = ROUTE_CATEGORY_CONFIG[track.category].defaultColor;
+      if (track.weight === undefined) track.weight = this.trackStyleHandler.getCurrentStyle().weight;
       if (track.distanceMeters === undefined) track.distanceMeters = calculateTrackDistanceMeters(track);
       if (track.estimatedDurationSeconds === undefined) {
         track.estimatedDurationSeconds = calculateEstimatedDuration(track.distanceMeters, track.category);
@@ -395,7 +393,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         if (seg.points.length > 0) {
           const polyline = L.polyline(seg.points, {
             color: track.color,
-            weight: weight,
+            weight: track.weight,
             opacity: 0.85,
             lineJoin: 'round',
           });
@@ -673,9 +671,13 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     return btn;
   }
 
+  /** Called when the map becomes visible again after being hidden by another page */
+  public refreshSize(): void {
+    this.map?.invalidateSize();
+  }
+
   ngOnDestroy(): void {
     this.gpxSubscription?.unsubscribe();
-    this.styleSubscription?.unsubscribe();
     this.map?.remove();
   }
 

@@ -3,9 +3,10 @@ import { Component, ElementRef, HostListener, ViewChild, effect, inject, signal,
 import { AuthService } from '../services/auth.service';
 import { GpxExportService } from '../services/gpx-export.service';
 import { GpxService } from '../services/gpx.service';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 @Component({
   selector: 'app-menu-bar',
-  imports: [],
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './menu-bar.html',
   styleUrl: './menu-bar.css',
 })

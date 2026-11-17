@@ -28,10 +28,12 @@
   </div>
 }
 
-<main class="content">
+<main class="content" [class.hidden]="!isMapPage()">
   <app-italy-map />
   <app-sidebar />
 </main>
+
+<router-outlet />
 
 @if (isDragging()) {
   <div class="drag-drop-overlay">
