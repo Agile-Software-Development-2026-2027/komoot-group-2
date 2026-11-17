@@ -618,3 +618,51 @@
 .btn-modal-save:hover {
   background: #1d4ed8;
 }
+
+.btn-secondary {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1.5px solid #2563eb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background: #eff6ff;
+}
+
+.btn-modal-save:disabled,
+.btn-modal-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.publish-summary {
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+  text-transform: capitalize;
+}
+
+.publish-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #475569;
+  overflow-wrap: anywhere;
+}
+
+.publish-error {
+  margin: 0;
+  font-size: 13px;
+  color: #b91c1c;
+}

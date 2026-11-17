@@ -1,0 +1,44 @@
+<section class="details">
+  <aside class="details-panel">
+    <a class="details-back" routerLink="/explore">&larr; Back to Explore</a>
+
+    @if (loading()) {
+      <p class="details-message">Loading…</p>
+    } @else if (error(); as message) {
+      <p class="details-message details-error" role="alert">{{ message }}</p>
+    } @else if (details(); as data) {
+      @if (pictureSrc(); as src) {
+        <img class="details-img" [src]="src" [alt]="data.route.name" />
+      }
+
+      <h2 class="details-name">{{ data.route.name }}</h2>
+      <p class="details-publisher">Published by {{ data.route.publisherUsername }}</p>
+
+      <div class="details-badges">
+        <span class="badge">{{ data.route.category }}</span>
+        <span class="badge">{{ data.route.difficulty }}</span>
+      </div>
+
+      <dl class="details-stats">
+        <div class="stat">
+          <dt>Distance</dt>
+          <dd>{{ distanceText() }}</dd>
+        </div>
+        <div class="stat">
+          <dt>Estimated time</dt>
+          <dd>{{ timeText() }}</dd>
+        </div>
+      </dl>
+
+      <button
+        type="button"
+        class="btn-report"
+        [disabled]="isReporting()"
+        (click)="reportRoute()">
+        {{ isReporting() ? 'Reporting…' : 'Report' }}
+      </button>
+    }
+  </aside>
+
+  <div #mapContainer class="details-map"></div>
+</section>

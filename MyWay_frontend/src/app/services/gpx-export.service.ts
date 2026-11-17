@@ -6,6 +6,8 @@ export interface TrackPoint {
   ele?: number;
   name?: string;
   time?: string;
+  desc?: string;
+  type?: string;
 }
 
 export interface RouteData {
@@ -144,6 +146,12 @@ export class GpxExportService {
     return gpxContent;
   }
 
+  /** Builds a GPX File object to upload to the backend. The route is passed in explicitly. */
+  createGpxFile(routeData: RouteData, filename = 'MyWay Route'): File {
+    const content = this.generateGpx(routeData);
+    return new File([content], this.resolveFilename(filename), { type: 'application/gpx+xml' });
+  }
+
   private formatPointXml(tag: 'trkpt' | 'wpt', pt: TrackPoint, indent: string): string[] {
     const attrs = `lat="${pt.lat}" lon="${pt.lon}"`;
     const children: string[] = [];
@@ -156,6 +164,12 @@ export class GpxExportService {
     }
     if (pt.name) {
       children.push(`${indent}  <name>${this.escapeXml(pt.name)}</name>`);
+    }
+    if (pt.desc) {
+      children.push(`${indent}  <desc>${this.escapeXml(pt.desc)}</desc>`);
+    }
+    if (pt.type) {
+      children.push(`${indent}  <type>${this.escapeXml(pt.type)}</type>`);
     }
 
     if (children.length === 0) {

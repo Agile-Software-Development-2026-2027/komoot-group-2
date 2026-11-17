@@ -50,19 +50,27 @@ describe('ItalyMap', () => {
     expect(topLeft.querySelector('a[title="Map style"]')).toBeTruthy();
   });
 
-  it('should restyle only the visible track lines, and only with what changed', () => {
-    const trackStyle = TestBed.inject(TrackStyleHandler);
-    const track = { category: 'cycling' as const, segments: [{ points: [[45, 7], [45.2, 7.2]] as [number, number][] }] };
-    component.renderGpx({ fileName: 'ride.gpx', waypoints: [], tracks: [track], allCoordinates: [[45, 7], [45.2, 7.2]] });
-    const [line, clickArea] = gpxLayers() as L.Polyline[];
+    it('should restyle only the track that was customized', async () => {
+    const sidebar = TestBed.inject(SidebarService);
+    const trackA = { category: 'cycling' as const, segments: [{ points: [[45, 7], [45.2, 7.2]] as [number, number][] }] };
+    const trackB = { category: 'hiking' as const, segments: [{ points: [[46, 8], [46.2, 8.2]] as [number, number][] }] };
+    component.renderGpx({
+      fileName: 'rides.gpx',
+      waypoints: [],
+      tracks: [trackA, trackB],
+      allCoordinates: [[45, 7], [45.2, 7.2], [46, 8], [46.2, 8.2]],
+    });
+    // layers: lineA, clickAreaA, lineB, clickAreaB
+    const [lineA, clickAreaA, lineB] = gpxLayers() as L.Polyline[];
+    expect(lineA.options).toMatchObject({ color: '#2563eb' }); // keeps the cycling color
 
-    trackStyle.setWeight(9);
-    expect(line.options).toMatchObject({ weight: 9, color: '#2563eb' }); // keeps the cycling color
-    expect(clickArea.options.weight).toBe(22); // stays easy to click
+    Object.assign(trackA, { color: '#ff00ff', weight: 9 });
+    sidebar.updateGpxTrack(trackA);
+    await fixture.whenStable();
 
-    trackStyle.setColor('#ff00ff');
-    expect(line.options).toMatchObject({ weight: 9, color: '#ff00ff' });
-    expect(track).toMatchObject({ color: '#ff00ff' });
+    expect(lineA.options).toMatchObject({ weight: 9, color: '#ff00ff' });
+    expect(clickAreaA.options.weight).toBe(22); // stays easy to click
+    expect(lineB.options).toMatchObject({ weight: 5, color: '#10b981' }); // other track untouched
   });
 
   it('should show the stats of a clicked GPX track in the sidebar', () => {
