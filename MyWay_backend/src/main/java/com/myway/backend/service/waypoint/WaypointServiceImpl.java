@@ -95,6 +95,7 @@ public class WaypointServiceImpl implements WaypointService {
 
         Waypoint saved = waypoints.save(Waypoint.builder()
                 .categories(new LinkedHashSet<>(request.getCategories()))
+                .name(request.getName() == null || request.getName().isBlank() ? null : request.getName().trim())
                 .description(request.getDescription())
                 .publisher(publisher)
                 .isPublic(true)
@@ -152,6 +153,7 @@ public class WaypointServiceImpl implements WaypointService {
         return WaypointDTO.builder()
                 .id(w.getId())
                 .categories(new LinkedHashSet<>(w.getCategories()))
+                .name(w.getName())
                 .description(w.getDescription())
                 .latitude(w.getLatitude())
                 .longitude(w.getLongitude())

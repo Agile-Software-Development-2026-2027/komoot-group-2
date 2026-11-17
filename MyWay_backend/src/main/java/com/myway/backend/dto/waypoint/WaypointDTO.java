@@ -16,6 +16,7 @@ import java.util.Set;
 public class WaypointDTO {
     private Integer id;
     private Set<WaypointCategory> categories;
+    private String name;
     private String description;
     private double latitude;
     private double longitude;
