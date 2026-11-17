@@ -3,6 +3,7 @@ import { Component, ElementRef, HostListener, ViewChild, effect, inject, signal,
 import { AuthService } from '../services/auth.service';
 import { GpxExportService } from '../services/gpx-export.service';
 import { GpxService } from '../services/gpx.service';
+import { WaypointPlacementService } from '../services/waypoint-placement.service';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 @Component({
   selector: 'app-menu-bar',
@@ -17,6 +18,7 @@ export class MenuBar {
   private readonly gpxExportService = inject(GpxExportService);
   private readonly elementRef = inject(ElementRef);
   private readonly authService = inject(AuthService);
+  private readonly waypointPlacement = inject(WaypointPlacementService);
 
   public isFileMenuOpen = false;
   // Signals: these change from HTTP callbacks and effects too, not only from DOM events
@@ -198,6 +200,12 @@ export class MenuBar {
   public onAddClick(): void {
     this.closeFileMenu();
     this.fileInput?.nativeElement.click();
+  }
+
+  /** Starts placing a new waypoint on the map and closes the menu */
+  public onAddWaypointClick(): void {
+    this.closeFileMenu();
+    this.waypointPlacement.start();
   }
 
   /** Handle the GPX file chosen by the user */

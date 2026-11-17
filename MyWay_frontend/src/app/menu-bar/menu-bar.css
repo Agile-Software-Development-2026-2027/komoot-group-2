@@ -294,3 +294,6 @@ a.menu-btn {
   color: inherit;
   cursor: pointer;
 }
+.dropdown-subitem {
+  padding-left: 2rem;
+}

@@ -44,6 +44,9 @@ public class Waypoint {
     @Column(name = "category", nullable = false, length = 30)
     private Set<WaypointCategory> categories = new LinkedHashSet<>();
 
+    @Column(length = 100)
+    private String name;
+
     @Column(columnDefinition = "text")
     private String description;
 

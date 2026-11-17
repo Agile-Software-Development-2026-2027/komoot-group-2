@@ -742,3 +742,20 @@
   background: #b91c1c;
   transform: translateY(-1px);
 }
+
+:host ::ng-deep .map-container.placing-waypoint,
+:host ::ng-deep .map-container.placing-waypoint .leaflet-grab {
+  cursor: crosshair;
+}
+
+:host ::ng-deep .map-container.placing-waypoint .custom-wp-pin .komoot-pin {
+  pointer-events: none;
+}
+
+.btn-modal-danger {
+  background: #dc2626;
+}
+
+.btn-modal-danger:hover {
+  background: #b91c1c;
+}

@@ -23,6 +23,9 @@ public class PublishWaypointRequestDTO {
     @NotEmpty
     private Set<WaypointCategory> categories;
 
+    @Size(max = 100)
+    private String name;
+
     @Size(max = 5000)
     private String description;
 

@@ -12,6 +12,7 @@ export const NEARBY_RADIUS_KM = 200;
 interface WaypointResponse {
   id: number;
   categories: string[];
+  name?: string | null;
   description: string | null;
   latitude: number;
   longitude: number;
@@ -38,6 +39,7 @@ export class WaypointApiService {
   publish(wp: GpxWaypoint): Observable<GpxWaypoint> {
     const body = {
       categories: (wp.categories ?? []).map(toBackendCategory),
+      name: wp.name?.trim() || null,
       description: wp.desc ?? '',
       latitude: wp.lat,
       longitude: wp.lon,
@@ -64,6 +66,7 @@ function toGpxWaypoint(w: WaypointResponse): GpxWaypoint {
     id: w.id,
     lat: w.latitude,
     lon: w.longitude,
+    name: w.name ?? undefined,
     desc: w.description ?? undefined,
     categories: w.categories.map(fromBackendCategory),
     photos: w.photos.map((url) => (url.startsWith('/') ? `${API_BASE_URL}${url}` : url)),
