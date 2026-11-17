@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { provideRouter } from '@angular/router';
 
 import { MenuBar } from './menu-bar';
 import { GpxExportService } from '../services/gpx-export.service';
@@ -23,7 +24,7 @@ describe('MenuBar', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [MenuBar],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
 
     fixture = TestBed.createComponent(MenuBar);

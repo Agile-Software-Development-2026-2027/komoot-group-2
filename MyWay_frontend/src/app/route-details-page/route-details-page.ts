@@ -26,7 +26,7 @@ export class RouteDetailsPage implements AfterViewInit, OnDestroy {
 
   private readonly publishingService = inject(RoutePublishingService);
   private readonly activatedRoute = inject(ActivatedRoute);
-private readonly router = inject(Router);
+  private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly gpxService = inject(GpxService);
   private routeId = 0;
