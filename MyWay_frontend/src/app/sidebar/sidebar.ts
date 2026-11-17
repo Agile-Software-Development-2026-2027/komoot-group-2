@@ -16,7 +16,6 @@ import { AuthService } from '../services/auth.service';
 import { GpxExportService, RouteData, TrackPoint } from '../services/gpx-export.service';
 import { RoutePublishingService } from '../services/route-publishing.service';
 
-
 interface RouteSummary {
   isGpx: boolean;
   name: string;
@@ -228,6 +227,7 @@ protected saveTrackChanges(): void {
 
   this.closeEditTrackModal();
 }
+
 
   protected openPublishModal(): void {
     if (!this.authService.isLoggedIn()) {

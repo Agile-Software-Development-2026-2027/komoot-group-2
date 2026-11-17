@@ -30,6 +30,55 @@
         </div>
       </dl>
 
+      @if (canShowNearby()) {
+        <button
+          type="button"
+          class="btn-nearby"
+          [disabled]="isLoadingNearby()"
+          (click)="toggleNearbyWaypoints()">
+          {{ isLoadingNearby() ? 'Loading…' : nearby() === null ? 'Show nearby waypoints' : 'Hide nearby waypoints' }}
+        </button>
+
+        @if (nearby(); as list) {
+          @if (list.length === 0) {
+            <p class="details-message">No public waypoints within 1 km of this route.</p>
+          } @else {
+            <p class="details-message">{{ list.length }} waypoint(s) within 1 km. Click one on the map.</p>
+          }
+        }
+      }
+
+      @if (selectedWaypoint(); as wp) {
+        <div class="wp-card">
+          <h3 class="wp-name">{{ wp.name || 'Waypoint' }}</h3>
+          <p class="details-publisher">Published by {{ wp.publisher }}</p>
+
+          @if (wp.categories && wp.categories.length > 0) {
+            <div class="details-badges">
+              @for (cat of wp.categories; track cat) {
+                <span class="badge">{{ cat }}</span>
+              }
+            </div>
+          }
+
+          @if (wp.distanceMeters !== undefined) {
+            <p class="wp-distance">{{ wp.distanceMeters }} m from this route</p>
+          }
+
+          <p class="wp-desc">{{ wp.desc || 'No description present for this point.' }}</p>
+
+          @if (wp.photos && wp.photos.length > 0) {
+            <div class="wp-photos">
+              @for (photo of wp.photos; track photo) {
+                <a [href]="photo" target="_blank" rel="noopener noreferrer">
+                  <img [src]="photo" alt="Waypoint photo" loading="lazy" />
+                </a>
+              }
+            </div>
+          }
+        </div>
+      }
+
       <button
         type="button"
         class="btn-report"

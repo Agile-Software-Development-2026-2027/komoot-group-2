@@ -90,6 +90,7 @@ export class SidebarService {
         this.clearSelection();
       }
     });
+
   }
 
   open(): void {
@@ -181,4 +182,5 @@ export class SidebarService {
       error: () => this.elevation.set({ status: 'unavailable' }),
     });
   }
+
 }
