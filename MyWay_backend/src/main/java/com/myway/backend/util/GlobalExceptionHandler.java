@@ -18,7 +18,7 @@ import com.myway.backend.service.exceptions.RouteNotFoundException;
 import com.myway.backend.service.exceptions.InvalidRouteException;
 import com.myway.backend.service.exceptions.AlreadyReportedException;
 import com.myway.backend.service.exceptions.CannotReportOwnRouteException;
-
+import com.myway.backend.service.exceptions.CannotViewNearbyOfOwnRouteException;
 
 // Global Exception Handler, the @RestControllerAdvice annotation is just for listening on everything that get thrown
 @RestControllerAdvice
@@ -72,6 +72,11 @@ public class GlobalExceptionHandler{
 
     @ExceptionHandler(CannotReportOwnRouteException.class)
     public ResponseEntity<ErrorResponse> handleCannotReportOwn(CannotReportOwnRouteException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse(e.getMessage()));
+    }
+
+    @ExceptionHandler(CannotViewNearbyOfOwnRouteException.class)
+    public ResponseEntity<ErrorResponse> handleCannotViewNearbyOfOwn(CannotViewNearbyOfOwnRouteException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse(e.getMessage()));
     }
 }

@@ -142,7 +142,7 @@ const DEFAULT_STYLE = {
 };
 const PUBLIC_BG_GRADIENT = 'linear-gradient(135deg, #fb923c, #ea580c)'; //color: orange
 
-function createWaypointIcon(wp: GpxWaypoint): L.DivIcon {
+export function createWaypointIcon(wp: GpxWaypoint): L.DivIcon {
   const primaryCat = wp.categories && wp.categories.length > 0 ? wp.categories[0] : null;
   const baseStyle = primaryCat ? CATEGORY_STYLES[primaryCat] : DEFAULT_STYLE;
   // Public waypoints keep the same structure but are orange
@@ -626,6 +626,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       marker.addTo(this.publicWaypointLayer);
     }
   }
+
 
   //POP-UP Showing Info
   public selectedWaypoint = signal<GpxWaypoint | null>(null);

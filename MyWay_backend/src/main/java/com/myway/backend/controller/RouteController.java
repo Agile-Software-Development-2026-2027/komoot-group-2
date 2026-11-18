@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import java.util.List;
 import com.myway.backend.dto.route.RouteDetailsDTO;
+import com.myway.backend.dto.waypoint.NearbyWaypointDTO;
+import com.myway.backend.service.route.RouteNearbyWaypointsService;
 
 
 @RestController
@@ -29,6 +31,7 @@ import com.myway.backend.dto.route.RouteDetailsDTO;
 public class RouteController {
 
     private final RouteService routeService;
+    private final RouteNearbyWaypointsService nearbyWaypointsService;
 
     @LoginRequired
     @PostMapping(value = "/publish", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -71,6 +74,14 @@ public class RouteController {
     @GetMapping("/public/{id}")
     public RouteDetailsDTO getPublicRouteDetails(@PathVariable Integer id) {
         return routeService.getVisibleRouteDetails(id);
+    }
+
+    // No @LoginRequired: reading is public, but the route's own publisher is refused (403)
+    @GetMapping("/public/{id}/waypoints")
+    public List<NearbyWaypointDTO> getWaypointsNearPublicRoute(@PathVariable Integer id,
+                                                              Authentication authentication) {
+        String email = authentication == null ? null : authentication.getName();
+        return nearbyWaypointsService.getWaypointsNearRoute(id, email);
     }
     
     @LoginRequired

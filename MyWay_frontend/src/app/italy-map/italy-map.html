@@ -53,6 +53,12 @@
         <span class="meta-value">{{ wp.ele }} m</span>
       </div>
       }
+      @if (wp.distanceMeters !== undefined) {
+      <div class="meta-item">
+        <span class="meta-label">From the route</span>
+        <span class="meta-value">{{ wp.distanceMeters }} m</span>
+      </div>
+      }
       <div class="meta-item">
         <span class="meta-label">Coordinates</span>
         <span class="meta-value">{{ wp.lat.toFixed(4) }}°, {{ wp.lon.toFixed(4) }}°</span>
