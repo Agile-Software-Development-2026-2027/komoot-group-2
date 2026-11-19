@@ -31,3 +31,5 @@ server:
 myway:
   storage:
     base-dir: ${MYWAY_STORAGE_DIR:uploads/routes}
+  routing:
+    osm-file: ${MYWAY_OSM_FILE:data/osm/sud-latest.osm.pbf}
