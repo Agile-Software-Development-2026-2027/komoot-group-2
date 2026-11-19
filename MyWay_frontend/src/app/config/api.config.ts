@@ -23,7 +23,7 @@ export const ROUTE_ENDPOINTS = {
   report: (id: number) => `${API_BASE_URL}/api/routes/${id}/report`,
 } as const;
 
-/** True when the request targets our backend (and not a third-party API such as OSRM or Open-Meteo). */
+/** True when the request targets our backend (and not a third-party API such as Open-Meteo). */
 export function isBackendUrl(url: string): boolean {
   return url === API_BASE_URL || url.startsWith(`${API_BASE_URL}/`);
 }

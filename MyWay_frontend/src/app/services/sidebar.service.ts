@@ -22,7 +22,7 @@ export type SidebarRoute =
   | { kind: 'planned'; route: PlannedRoute };
 
 
-/** Customization of a route created with the route planner (kept apart from the OSRM result) */
+/** Customization of a route created with the route planner (kept apart from the route itself) */
 export interface PlannedRouteDetails {
   name: string;
   category: RouteCategory;
