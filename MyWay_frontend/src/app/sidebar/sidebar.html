@@ -39,6 +39,7 @@
       @if (summary(); as route) {
       <div class="route-heading">
         <span class="route-caption">{{ route.isPublicRoute ? 'Public route' : route.isGpx ? 'GPX route' : 'Created route' }}</span>        
+        <h3 class="route-name">{{ route.name }}</h3>
         @if (route.publisher) {
         <p class="stats-note">Published by {{ route.publisher }}</p>
         }
