@@ -21,13 +21,18 @@ import com.myway.backend.model.RouteReport;
 import com.myway.backend.repository.RouteReportRepository;
 import com.myway.backend.service.exceptions.AlreadyReportedException;
 import com.myway.backend.service.exceptions.CannotReportOwnRouteException;
-
+import com.myway.backend.dto.gpx.PointDTO;
+import com.myway.backend.dto.route.NearbyRouteDTO;
+import com.myway.backend.util.GeoUtils;
+import java.util.ArrayList;
+import java.util.Comparator;
 
 @Service
 @RequiredArgsConstructor
 public class RouteService {
 
     private static final int MAX_NAME_LENGTH = 255;
+    private static final double MAX_NEARBY_RADIUS_KM = 100.0;
 
     private final RouteRepository routeRepository;
     private final UserRepository userRepository;
@@ -62,6 +67,10 @@ public class RouteService {
                 picturePath = storageService.savePicture(picture);
             }
 
+            List<PointDTO> points = gpxReader.readPoints(gpxPath);
+            Double startLatitude = points.isEmpty() ? null : points.getFirst().getLatitude();
+            Double startLongitude = points.isEmpty() ? null : points.getFirst().getLongitude();
+
             Route route = Route.builder()
                     .name(name.trim())
                     .gpxPath(gpxPath)
@@ -72,6 +81,9 @@ public class RouteService {
                     .isPublic(isPublic)
                     .lengthInMeters(distanceMeters)
                     .estimatedTimeInMinutes(estimatedTimeInMinutes)
+                    .startLatitude(startLatitude)
+                    .startLongitude(startLongitude)
+                    .lengthInMeters(distanceMeters)
                     .build();
 
             Route saved = routeRepository.save(route);
@@ -91,6 +103,47 @@ public class RouteService {
         return routeRepository.findVisiblePublicRoutes().stream()
                 .map(route -> toSummary(route, false))
                 .toList();
+    }
+
+        /** Visible public routes whose start point is within radiusKm of the given position, nearest first. */
+    public List<NearbyRouteDTO> findNearby(double lat, double lon, double radiusKm) {
+        if (!(lat >= -90 && lat <= 90) || !(lon >= -180 && lon <= 180)) {
+            throw new InvalidRouteException("Invalid coordinates.");
+        }
+        if (!(radiusKm > 0 && radiusKm <= MAX_NEARBY_RADIUS_KM)) {
+            throw new InvalidRouteException("The radius must be between 0 and " + (int) MAX_NEARBY_RADIUS_KM + " km.");
+        }
+
+        GeoUtils.BoundingBox box = GeoUtils.boundingBox(
+                List.of(new GeoUtils.GeoPoint(lat, lon)), radiusKm * 1000);
+
+        List<NearbyRouteDTO> result = new ArrayList<>();
+        for (Route route : routeRepository.findVisiblePublicInBox(
+                box.minLatitude(), box.maxLatitude(), box.minLongitude(), box.maxLongitude())) {
+            double distanceKm = GeoUtils.haversineMeters(
+                    lat, lon, route.getStartLatitude(), route.getStartLongitude()) / 1000.0;
+            if (distanceKm <= radiusKm) {
+                result.add(toNearby(route, distanceKm));
+            }
+        }
+        result.sort(Comparator.comparingDouble(NearbyRouteDTO::getDistanceFromUserKm));
+        return result;
+    }
+
+    private NearbyRouteDTO toNearby(Route route, double distanceKm) {
+        return NearbyRouteDTO.builder()
+                .id(route.getId())
+                .name(route.getName())
+                .category(route.getCategory().name())
+                .difficulty(route.getDifficulty().name())
+                .distanceMeters(route.getLengthInMeters())
+                .estimatedTimeInMinutes(route.getEstimatedTimeInMinutes())
+                .publisherUsername(route.getPublisher().getUsername())
+                .pictureUrl(route.getPicturePath() == null ? null : "/api/routes/" + route.getId() + "/picture")
+                .startLatitude(route.getStartLatitude())
+                .startLongitude(route.getStartLongitude())
+                .distanceFromUserKm(distanceKm)
+                .build();
     }
 
     /** Returns the picture path only if the route is publicly visible. */

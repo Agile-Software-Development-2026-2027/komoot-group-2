@@ -42,4 +42,22 @@ public interface RouteRepository extends JpaRepository<Route, Integer> {
         WHERE r.id = :id AND r.publisher.email = :email
         """)
     Optional<Route> findOwnedById(@Param("id") Integer id, @Param("email") String email);
+
+    
+    // visible public routes whose start point is inside a bounding box (nobody has reported them)
+    @Query("""
+        SELECT r FROM Route r
+        JOIN FETCH r.publisher
+        WHERE r.isPublic = true
+        AND r.startLatitude BETWEEN :minLat AND :maxLat
+        AND r.startLongitude BETWEEN :minLon AND :maxLon
+        AND NOT EXISTS (
+            SELECT rr FROM RouteReport rr
+            WHERE rr.route = r
+        )
+        """)
+    List<Route> findVisiblePublicInBox(@Param("minLat") double minLat,
+                                       @Param("maxLat") double maxLat,
+                                       @Param("minLon") double minLon,
+                                       @Param("maxLon") double maxLon);
 }

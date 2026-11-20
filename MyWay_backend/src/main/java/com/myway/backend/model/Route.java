@@ -60,6 +60,12 @@ public class Route {
     @Column(name = "length_in_meters")
     private Double lengthInMeters;
 
+    @Column(name = "start_latitude")
+    private Double startLatitude;
+
+    @Column(name = "start_longitude")
+    private Double startLongitude;
+
     @Builder.Default
     @Column(name = "is_public", nullable = false)
     private boolean isPublic = false;
