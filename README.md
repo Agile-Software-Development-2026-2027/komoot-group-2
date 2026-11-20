@@ -5,6 +5,28 @@
 - Backend: Spring Boot (`MyWay_backend/`) & PostgreSQL;
 - Frontend: Angular (`MyWay_frontend/`);
 
+## Road network for route planning
+
+The backend calculates routes on the OpenStreetMap road network of Southern Italy, read from a
+local file. The file is about 420 MB, too big for git, so everyone downloads it once.
+
+From `MyWay_backend/`, in WSL, Linux or macOS:
+
+```sh
+curl -L --create-dirs -o data/osm/sud-latest.osm.pbf https://download.geofabrik.de/europe/italy/sud-latest.osm.pbf
+```
+
+In Windows PowerShell write `curl.exe` instead of `curl`. You can also download the file from
+the browser and save it as `MyWay_backend/data/osm/sud-latest.osm.pbf`: keep this exact name,
+without the date.
+
+- Never commit the file: `MyWay_backend/data/` is in `.gitignore`.
+- The path is relative to the folder the backend is started from (`MyWay_backend/`). If you start
+  it from somewhere else, or keep the file in another place, set the environment variable
+  `MYWAY_OSM_FILE` to its full path (property `myway.routing.osm-file` in `application.yml`).
+- You only need the file to plan routes: CI and the rest of the backend work without it.
+- Geofabrik updates the file every day. To get newer data, download it again.
+
 ## How we work
 
 - `main` is protected: nobody can push to it, every change goes through a pull request.

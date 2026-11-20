@@ -222,6 +222,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
 
   protected readonly routeHint = computed(() => {
     const route = this.routePlanner.route();
+    if (this.routePlanner.loading()) return 'Calculating route…';
     if (route) return `${formatDistance(route.distanceMeters)} · ${formatDuration(route.durationSeconds)}`;
     if (!this.routePlanner.start()) return 'Click on the map to set the starting point';
     if (!this.routePlanner.end()) return 'Click on the map to set the destination';
