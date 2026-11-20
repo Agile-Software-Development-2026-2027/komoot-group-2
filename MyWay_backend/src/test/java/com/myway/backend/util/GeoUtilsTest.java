@@ -39,6 +39,20 @@ class GeoUtilsTest {
     }
 
     @Test
+    void haversineOfAMilliDegreeOfLatitude() {
+        assertEquals(MILLI_DEGREE_METERS, GeoUtils.haversineMeters(41.0, 16.0, 41.001, 16.0), 0.5);
+    }
+
+    @Test
+    void projectionGivesThePointOnTheSegmentAndItsFraction() {
+        GeoUtils.SegmentProjection projection = GeoUtils.projectOnSegment(0.001, 0.003, 0, 0, 0, 0.01);
+        assertEquals(0.3, projection.fraction(), 1e-9);
+        assertEquals(0.0, projection.latitude(), 1e-12);
+        assertEquals(0.003, projection.longitude(), 1e-12);
+        assertEquals(MILLI_DEGREE_METERS, projection.distanceMeters(), 0.5);
+    }
+
+    @Test
     void polylineTakesTheNearestSegment() {
         List<GeoPoint> track = List.of(
                 new GeoPoint(0, 0), new GeoPoint(0, 0.01), new GeoPoint(0.01, 0.01));
