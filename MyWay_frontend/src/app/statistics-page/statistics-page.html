@@ -1,0 +1,47 @@
+<section class="stats">
+  <h1 class="stats-title">Statistics</h1>
+
+  @if (!auth.isLoggedIn()) {
+    <div class="stats-message">
+      <p>Log in to see your statistics.</p>
+      <button type="button" class="stats-btn" (click)="openLogin()">Log in</button>
+    </div>
+  } @else if (stats().tripCount === 0) {
+    <div class="stats-message">
+      <p>You have not completed any routes yet.</p>
+    </div>
+  } @else {
+    <div class="stat-cards">
+      @for (card of cards(); track card.title) {
+        <div class="stat-card">
+          <h2>{{ card.title }}</h2>
+          <div class="stat-value">{{ card.total }}</div>
+          <div class="stat-label">Total</div>
+          <div class="stat-average">{{ card.average }} <span>average per trip</span></div>
+        </div>
+      }
+    </div>
+
+    <div class="chart-grid">
+      @for (chart of charts(); track chart.title) {
+        <div class="chart-card">
+          <h2>{{ chart.title }}</h2>
+          @if (chart.slices.length) {
+            <div class="pie" [style.background]="chart.gradient" role="img" [attr.aria-label]="chart.title"></div>
+            <ul class="legend">
+              @for (slice of chart.slices; track slice.label) {
+                <li>
+                  <span class="legend-dot" [style.background]="slice.color"></span>
+                  <span class="legend-label">{{ slice.label }}</span>
+                  <span class="legend-value">{{ slice.percent }}%</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="chart-empty">No data</p>
+          }
+        </div>
+      }
+    </div>
+  }
+</section>
