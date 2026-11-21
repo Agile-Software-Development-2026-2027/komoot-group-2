@@ -6,7 +6,7 @@ import { AuthService } from '../services/auth.service';
 
 /**
  * Attaches `Authorization: Bearer <jwt>` to requests sent to our backend when the user is
- * logged in. Requests to third-party APIs (OSRM, Open-Meteo, ...) never receive the token.
+ * logged in. Requests to third-party APIs (Open-Meteo, ...) never receive the token.
  *
  * Anonymous users can still call the public endpoints; when a `@LoginRequired` endpoint
  * answers 401 (missing, invalid or expired token) the user is logged out and asked to log in.

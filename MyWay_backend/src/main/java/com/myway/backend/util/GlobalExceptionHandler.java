@@ -18,7 +18,11 @@ import com.myway.backend.service.exceptions.RouteNotFoundException;
 import com.myway.backend.service.exceptions.InvalidRouteException;
 import com.myway.backend.service.exceptions.AlreadyReportedException;
 import com.myway.backend.service.exceptions.CannotReportOwnRouteException;
-
+import com.myway.backend.service.exceptions.CannotViewNearbyOfOwnRouteException;
+import com.myway.backend.service.exceptions.NoRouteFoundException;
+import com.myway.backend.service.exceptions.PointTooFarFromRoadException;
+import com.myway.backend.service.exceptions.RoutingException;
+import com.myway.backend.service.exceptions.RoutingUnavailableException;
 
 // Global Exception Handler, the @RestControllerAdvice annotation is just for listening on everything that get thrown
 @RestControllerAdvice
@@ -73,5 +77,20 @@ public class GlobalExceptionHandler{
     @ExceptionHandler(CannotReportOwnRouteException.class)
     public ResponseEntity<ErrorResponse> handleCannotReportOwn(CannotReportOwnRouteException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse(e.getMessage()));
+    }
+
+    @ExceptionHandler(CannotViewNearbyOfOwnRouteException.class)
+    public ResponseEntity<ErrorResponse> handleCannotViewNearbyOfOwn(CannotViewNearbyOfOwnRouteException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse(e.getMessage()));
+    }
+
+    @ExceptionHandler(RoutingException.class)
+    public ResponseEntity<ErrorResponse> handleRoutingException(RoutingException e) {
+        HttpStatus status = switch (e) {
+            case PointTooFarFromRoadException _ -> HttpStatus.UNPROCESSABLE_CONTENT;
+            case NoRouteFoundException _ -> HttpStatus.NOT_FOUND;
+            case RoutingUnavailableException _ -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
+        return ResponseEntity.status(status).body(new ErrorResponse(e.getMessage()));
     }
 }
