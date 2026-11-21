@@ -1,8 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http'; // Import HttpClient for backend requests
 import { ROUTE_CATEGORY_CONFIG, calculateEstimatedDuration } from '../italy-map/italy-map';
-import { GpxService, RouteCategory, RouteDifficulty } from '../services/gpx.service';
-import { ROUTE_NAME } from '../services/route-planner.service';
+import { GpxService, GpxTrack, GpxTrackSegment, ParsedGpx, RouteCategory, RouteDifficulty } from '../services/gpx.service';
 import { SidebarService } from '../services/sidebar.service';
 import {
   DEFAULT_TRACK_STYLE,
@@ -11,7 +11,6 @@ import {
   TrackStyleHandler,
 } from '../services/track-style-handler.service';
 import { ElevationStats, formatDistance, formatDuration } from '../utils/route-stats';
-import { HttpErrorResponse } from '@angular/common/http';
 import { AuthService } from '../services/auth.service';
 import { GpxExportService, RouteData, TrackPoint } from '../services/gpx-export.service';
 import { RoutePublishingService } from '../services/route-publishing.service';
@@ -36,6 +35,14 @@ interface RouteColor {
   /** Where the color comes from: the route category, the default style or the user */
   label: string;
 }
+interface PointPayload {
+  latitude: number;
+  longitude: number;
+  elevation: number | null;
+}
+
+
+const API_URL = 'http://localhost:8080/api';
 
 const AVAILABLE_ROUTE_CATEGORIES: RouteCategory[] = ['hiking', 'cycling', 'running', 'walking'];
 const AVAILABLE_ROUTE_DIFFICULTIES: RouteDifficulty[] = ['easy', 'intermediate', 'hard'];
@@ -53,19 +60,23 @@ const PRESET_TRACK_COLORS = [
 export class Sidebar {
   protected readonly sidebar = inject(SidebarService);
   private readonly trackStyleHandler = inject(TrackStyleHandler);
+  
+  private readonly http = inject(HttpClient); // Inject HttpClient for backend requests
   private readonly authService = inject(AuthService);
   private readonly gpxExportService = inject(GpxExportService);
   private readonly gpxService = inject(GpxService);
   private readonly publishingService = inject(RoutePublishingService);
+
+  // Temporary user email used until the logged-in user is wired up
+  private readonly currentUserEmail = 'test@example.com';
 
   protected readonly isPublishOpen = signal(false);
   protected readonly isSending = signal(false);
   protected readonly publishIsPublic = signal(true);
   protected readonly publishPicture = signal<File | null>(null);
   protected readonly publishError = signal<string | null>(null);
-
   protected readonly previewPhotoUrl = signal<string | null>(null);
-
+  
   /** "Custom Route": color and thickness of the tracks on the map */
   protected readonly trackStyle = toSignal(this.trackStyleHandler.style$, { requireSync: true });
   protected readonly minWeight = MIN_WEIGHT;
@@ -229,6 +240,191 @@ protected saveTrackChanges(): void {
 }
 
 
+// Save route logic and folder selection state/handlers connected to the real backend
+  protected readonly isSavingRoute = signal(false);
+  protected readonly userFolders = signal<{ id: number; name: string; userEmail: string }[]>([]);
+  protected readonly selectedFolderId = signal<number | null>(null);
+  protected readonly newFolderName = signal('');
+
+  protected readonly savedRoutes = signal<{ id: number; name: string }[]>([]);
+  protected readonly activeFolderIdForRoutes = signal<number | null>(null);
+/** Name chosen by the user for the route to save (pre-filled with the current name) */
+  protected readonly routeNameToSave = signal('');
+    constructor() {
+    // Show the folders as soon as the sidebar is created
+    this.loadFolders();
+  }
+
+  private loadFolders(): void {
+    this.http.get<any[]>(`${API_URL}/folders?userEmail=${encodeURIComponent(this.currentUserEmail)}`).subscribe({
+      next: (folders) => this.userFolders.set(folders),
+      error: (err) => console.error('Error fetching folders from backend:', err),
+    });
+  }
+  protected fetchRoutesForFolder(folderId: number): void {
+    this.activeFolderIdForRoutes.set(folderId);
+    
+    this.http.get<any[]>(`${API_URL}/routes?folderId=${folderId}`).subscribe({
+      next: (routes) => {
+        this.savedRoutes.set(routes);
+        console.log(`Loaded ${routes.length} routes for folder ID ${folderId}:`, routes);
+      },
+      error: (err) => {
+        console.error('Error fetching saved routes:', err);
+        this.savedRoutes.set([]);
+      }
+    });
+  }
+
+
+  protected openSaveRouteModal(): void {
+    const selected = this.sidebar.selectedRoute();
+    if (!selected) return;
+
+    this.selectedFolderId.set(null);
+    this.newFolderName.set('');
+    this.routeNameToSave.set(this.summary()?.name || 'My Route');
+    this.isSavingRoute.set(true);
+
+  this.loadFolders();
+  }
+
+  protected closeSaveRouteModal(): void {
+    this.isSavingRoute.set(false);
+    this.selectedFolderId.set(null);
+    this.newFolderName.set('');
+  }
+
+  
+  // Ensures only one option is active at a time: selecting a folder clears the new name input
+  protected onFolderSelected(value: string): void {
+    const id = value ? +value : null;
+    this.selectedFolderId.set(id);
+    if (id !== null) {
+      this.newFolderName.set('');
+    }
+  }
+
+  // Ensures only one option is active at a time: typing a new folder name clears the dropdown selection
+  protected onNewFolderInput(value: string): void {
+    this.newFolderName.set(value);
+    if (value.trim() !== '') {
+      this.selectedFolderId.set(null);
+    }
+  }
+
+     // Loads a saved route from the backend and draws it on the map
+  protected loadRouteToMap(routeId: number): void {
+    this.http.get<any>(`${API_URL}/routes/${routeId}`).subscribe({
+      next: (route) => {
+        const points: { latitude: number; longitude: number; elevation: number | null }[] = route.points ?? [];
+        if (points.length === 0) {
+          alert('This route has no saved points.');
+          return;
+        }
+
+        // Backend points -> GPX track (same shape the map already knows how to draw)
+        const segment: GpxTrackSegment = {
+          points: points.map((p): [number, number] => [p.latitude, p.longitude]),
+        };
+        if (points.some((p) => p.elevation !== null && p.elevation !== undefined)) {
+          segment.elevations = points.map((p) => p.elevation ?? null);
+        }
+
+        const track: GpxTrack = { name: route.name, segments: [segment] };
+        const parsed: ParsedGpx = {
+          fileName: route.name,
+          waypoints: [],
+          tracks: [track],
+          allCoordinates: segment.points,
+        };
+
+        this.gpxService.showParsedGpx(parsed);  // the map draws it and zooms on it
+        this.sidebar.showTrack(track, []);      // the sidebar shows its stats
+      },
+      error: (err) => {
+        console.error('Error loading route details:', err);
+        alert('Error loading the route.');
+      },
+    });
+  }
+  protected confirmSaveRoute(): void {
+    const selected = this.sidebar.selectedRoute();
+    if (!selected) return;
+    
+    const folderId = this.selectedFolderId();
+    const newName = this.newFolderName().trim();
+    const routeName = this.routeNameToSave().trim();
+
+    if (!routeName) {
+      alert('Please enter a route name.');
+      return;
+    }
+    
+    if (!folderId && !newName) {
+      alert('Please select an existing folder or type a new folder name.');
+      return;
+    }
+
+    if (newName) {
+      // 1. Create the new folder first, then use its returned ID to save the route
+      this.http.post<any>(`${API_URL}/folders?name=${encodeURIComponent(newName)}&userEmail=${this.currentUserEmail}`, {}).subscribe({
+        next: (createdFolder) => {
+          console.log('New folder created successfully:', createdFolder);
+          this.saveRouteToBackend(createdFolder.id, routeName);
+        },
+        error: (err) => {
+          console.error('Error creating new folder:', err);
+        }
+      });
+    } else if (folderId) {
+      // 2. Save directly into the selected existing folder ID
+      this.saveRouteToBackend(folderId, routeName);
+    }
+  }
+
+    /** Converts the selected route (GPX track or planned route) into the points sent to the backend */
+  private extractPoints(): PointPayload[] {
+    const selected = this.sidebar.selectedRoute();
+    if (!selected) return [];
+
+    if (selected.kind === 'planned') {
+      return selected.route.points.map((p) => ({
+        latitude: p.lat,
+        longitude: p.lon,
+        elevation: null,
+      }));
+    }
+
+    return selected.track.segments.flatMap((seg) =>
+      seg.points.map(([lat, lon], i) => ({
+        latitude: lat,
+        longitude: lon,
+        elevation: seg.elevations?.[i] ?? null,
+      })),
+    );
+  }
+
+    // POST /api/routes with a JSON body: folder, name and points of the route
+  private saveRouteToBackend(folderId: number, routeName: string): void {
+    const body = { folderId, name: routeName, points: this.extractPoints() };
+
+    this.http.post<any>(`${API_URL}/routes`, body).subscribe({
+      next: (savedRoute) => {
+        console.log('Route saved successfully to database:', savedRoute);
+        alert('Route saved successfully!');
+        this.closeSaveRouteModal();
+        this.loadFolders();                  // the new folder shows up in the list
+        this.fetchRoutesForFolder(folderId); // and its routes are displayed
+      },
+      error: (err) => {
+        console.error('Error saving route to backend:', err);
+        alert('Error saving the route. Check the console.');
+      },
+    });
+  }
+
+
   protected openPublishModal(): void {
     if (!this.authService.isLoggedIn()) {
       this.gpxService.showNotification({
@@ -367,3 +563,4 @@ protected saveTrackChanges(): void {
       });
   }
 }
+

@@ -41,8 +41,8 @@ public class StatisticsServiceImpl implements StatisticsService {
             return 0.0;
         }
         return Geoid.WGS84.distance(
-            this.convertToJPXPoint(track.getPoints().getFirst()), 
-            this.convertToJPXPoint(track.getPoints().getLast())
+            this.convertToJPXPoint(track.getPoints().get(0)), 
+            this.convertToJPXPoint(track.getPoints().get(track.getPoints().size()-1))
         ).doubleValue();
     }
     

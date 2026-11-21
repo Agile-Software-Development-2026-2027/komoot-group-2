@@ -30,11 +30,13 @@ describe('Sidebar', () => {
       imports: [Sidebar],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
-
     fixture = TestBed.createComponent(Sidebar);
     sidebar = TestBed.inject(SidebarService);
     http = TestBed.inject(HttpTestingController);
     host = fixture.nativeElement as HTMLElement;
+
+    // The sidebar loads the user's folders when it is created: answer that request
+    http.expectOne((req) => req.url.startsWith('http://localhost:8080/api/folders')).flush([]);
     await fixture.whenStable();
   });
 
