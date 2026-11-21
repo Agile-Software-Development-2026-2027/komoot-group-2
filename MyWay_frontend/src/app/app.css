@@ -143,3 +143,8 @@
   font-size: 14px;
   color: #64748b;
 }
+
+/* The map stays alive but is not shown on other pages */
+.content.hidden {
+  display: none;
+}

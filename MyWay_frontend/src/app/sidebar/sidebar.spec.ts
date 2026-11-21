@@ -8,7 +8,6 @@ import { SidebarService } from '../services/sidebar.service';
 import { RoutePlannerService } from '../services/route-planner.service';
 import { OPEN_METEO_ELEVATION_URL } from '../services/elevation.service';
 import { GpxTrack } from '../services/gpx.service';
-import { TrackStyleHandler } from '../services/track-style-handler.service';
 
 const GPX_TRACK: GpxTrack = {
   name: 'Monte Rosa loop',
@@ -79,8 +78,8 @@ describe('Sidebar', () => {
 
   it('should show the stats and photos of a clicked GPX route', async () => {
     sidebar.showTrack(GPX_TRACK, [
-      { lat: 45.9, lon: 7.8, photos: ['photo-a.jpg', 'photo-b.jpg'] },
-      { lat: 45.92, lon: 7.82, photos: ['photo-a.jpg'] },
+      { lat: 45.9, lon: 7.8, photos: ['photo-a.jpg', 'photo-b.jpg'], isPublic: false },
+      { lat: 45.92, lon: 7.82, photos: ['photo-a.jpg'], isPublic: false },
     ]);
     await fixture.whenStable();
 
@@ -134,7 +133,6 @@ describe('Sidebar', () => {
   });
 
   it('should customize the color and thickness of the routes with "Custom Route" modal', async () => {
-    const trackStyle = TestBed.inject(TrackStyleHandler);
     const track: GpxTrack = { ...GPX_TRACK };
     sidebar.showTrack(track, []);
     await fixture.whenStable();
@@ -162,7 +160,7 @@ describe('Sidebar', () => {
 
     expect(host.querySelector('.edit-modal-card')).toBeNull();
     expect(track.color).toBe('#123456');
-    expect(trackStyle.getCurrentStyle().weight).toBe(8);
+    expect(track.weight).toBe(8);
     expect(swatch.style.height).toBe('8px');
     expect(swatch.style.backgroundColor).toBe('rgb(18, 52, 86)');
   });

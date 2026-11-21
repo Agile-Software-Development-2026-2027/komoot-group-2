@@ -14,6 +14,14 @@ export interface GpxWaypoint {
   ele?: number;
   categories?: WaypointCategory[];
   photos?: string[];
+  /** Backend id, set once the waypoint has been published. */
+  id?: number;
+  /** True when the waypoint was published by a user and is visible to everyone. Private (false) by default. */
+  isPublic: boolean;
+  /** Username of the user who published the waypoint (only for public waypoints). */
+  publisher?: string;
+  /** Shortest distance in metres from the track this waypoint was found near (only set by "nearby waypoints"). */
+  distanceMeters?: number;
 }
 
 export interface GpxTrackSegment {
@@ -30,6 +38,7 @@ export interface GpxTrack {
   color?: string;
   distanceMeters?: number;
   estimatedDurationSeconds?: number;
+  weight?: number;
 }
 
 export interface ParsedGpx {
@@ -37,6 +46,8 @@ export interface ParsedGpx {
   waypoints: GpxWaypoint[];
   tracks: GpxTrack[];
   allCoordinates: [number, number][];
+  /** Original file content, kept to publish the route */
+  sourceXml?: string;
 }
 
 export interface GpxNotification {
@@ -68,6 +79,7 @@ export class GpxService {
   public async loadGpxFile(file: File): Promise<ParsedGpx> {
     try {
       const { parsed, xmlText } = await this.readAndParse(file);
+      parsed.sourceXml = xmlText;
       this.gpxExportService.loadFromGpxXml(xmlText, file.name.replace(/\.gpx$/i, ''));
 
       this.currentGpxSubject.next(parsed);
@@ -267,6 +279,7 @@ export class GpxService {
         ele,
         categories: categories.length > 0 ? categories : undefined,
         photos: photos.length > 0 ? photos : undefined,
+        isPublic: false,
       });
     }
 

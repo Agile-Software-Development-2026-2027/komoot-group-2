@@ -384,6 +384,31 @@
   transition: background 0.15s ease, transform 0.1s ease;
 }
 
+.btn-make-public {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn-make-public:hover:not(:disabled) {
+  background: #c2410c;
+  transform: translateY(-1px);
+}
+
+.btn-make-public:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
 .btn-customize-waypoint:hover {
   background: #1d4ed8;
   transform: translateY(-1px);
@@ -689,4 +714,48 @@
 
 :host ::ng-deep .leaflet-interactive {
   cursor: pointer !important;
+}
+
+.sidebar-publisher {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 14px;
+}
+
+.btn-report-waypoint {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.btn-report-waypoint:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+:host ::ng-deep .map-container.placing-waypoint,
+:host ::ng-deep .map-container.placing-waypoint .leaflet-grab {
+  cursor: crosshair;
+}
+
+:host ::ng-deep .map-container.placing-waypoint .custom-wp-pin .komoot-pin {
+  pointer-events: none;
+}
+
+.btn-modal-danger {
+  background: #dc2626;
+}
+
+.btn-modal-danger:hover {
+  background: #b91c1c;
 }

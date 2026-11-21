@@ -3,9 +3,11 @@ import { Component, ElementRef, HostListener, ViewChild, effect, inject, signal,
 import { AuthService } from '../services/auth.service';
 import { GpxExportService } from '../services/gpx-export.service';
 import { GpxService } from '../services/gpx.service';
+import { WaypointPlacementService } from '../services/waypoint-placement.service';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 @Component({
   selector: 'app-menu-bar',
-  imports: [],
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './menu-bar.html',
   styleUrl: './menu-bar.css',
 })
@@ -16,6 +18,7 @@ export class MenuBar {
   private readonly gpxExportService = inject(GpxExportService);
   private readonly elementRef = inject(ElementRef);
   private readonly authService = inject(AuthService);
+  private readonly waypointPlacement = inject(WaypointPlacementService);
 
   public isFileMenuOpen = false;
   // Signals: these change from HTTP callbacks and effects too, not only from DOM events
@@ -127,7 +130,10 @@ export class MenuBar {
     }
     this.submitAuth(
       this.authService.register({ email: email.trim(), username: username.trim(), password }),
-      { 409: 'An account with this email already exists.' },
+      {
+        400: 'Invalid data: check email, username and password.',
+        409: 'An account with this email already exists.',
+      },
     );
   }
 
@@ -171,7 +177,7 @@ export class MenuBar {
   }
 
   public get hasMinLength(): boolean {
-    return this.registerPassword.length >= 6;
+    return this.registerPassword.length >= 8;
   }
 
   public get hasUppercase(): boolean {
@@ -194,6 +200,12 @@ export class MenuBar {
   public onAddClick(): void {
     this.closeFileMenu();
     this.fileInput?.nativeElement.click();
+  }
+
+  /** Starts placing a new waypoint on the map and closes the menu */
+  public onAddWaypointClick(): void {
+    this.closeFileMenu();
+    this.waypointPlacement.start();
   }
 
   /** Handle the GPX file chosen by the user */

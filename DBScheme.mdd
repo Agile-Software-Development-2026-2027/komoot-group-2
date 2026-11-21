@@ -1,9 +1,8 @@
 erDiagram
-    %% Source of truth: MyWay_backend/src/main/resources/db/migration (Flyway).
     %% ENUM columns are stored as VARCHAR_30 and mapped to Java enums:
     %%   ROUTE.category      -> RouteCategory   (HIKING, CYCLING, RUNNING, WALKING)
     %%   ROUTE.difficulty    -> Difficulty      (EASY, MEDIUM, HARD)
-    %%   WAYPOINT.category   -> WaypointCategory (FOUNTAIN, SHELTER, PANORAMIC_VIEW, SANCTUARY, PEAK)
+    %%   WAYPOINT_CATEGORIES.category -> WaypointCategory (FOUNTAIN, SHELTER, PANORAMIC_VIEW, SANCTUARY, PEAK)
 
     USERS {
         VARCHAR_255 email PK
@@ -26,7 +25,6 @@ erDiagram
 
     WAYPOINT {
         INT id PK
-        ENUM category
         TEXT description "nullable"
         VARCHAR_255 publisher FK
         BOOLEAN is_public "default false"
@@ -34,9 +32,14 @@ erDiagram
         DOUBLE longitude "-180..180"
     }
 
+    WAYPOINT_CATEGORIES {
+        INT waypoint_id PK, FK
+        ENUM category PK
+    }
+
     WAYPOINT_PICTURES {
         INT waypoint_id PK, FK
-        VARCHAR_255 picture_path PK
+        VARCHAR_255 picture_path PK "file name inside uploads/waypoints/ (project root)"
     }
 
     REPORT_ROUTE {
@@ -53,6 +56,7 @@ erDiagram
     USERS ||--o{ ROUTE : "publishes"
     USERS ||--o{ WAYPOINT : "publishes"
 
+    WAYPOINT ||--|{ WAYPOINT_CATEGORIES : "has_categories"
     WAYPOINT ||--o{ WAYPOINT_PICTURES : "has_pictures"
 
     USERS ||--o{ REPORT_ROUTE : "reports_route"
