@@ -5,6 +5,7 @@ import { ElevationStats, computeElevationStats } from '../utils/route-stats';
 import { ElevationService } from './elevation.service';
 import { GpxService, GpxTrack, GpxWaypoint, RouteCategory, RouteDifficulty } from './gpx.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from './route-planner.service';
+import { RouteDetails } from './route-publishing.service';
 
 /**
  * Width of the map covered by the open sidebar, plus some margin. From sidebar.css: the panel is
@@ -19,7 +20,8 @@ const MIN_FILE_ELEVATIONS = 2;
 /** The route whose stats are shown in the sidebar */
 export type SidebarRoute =
   | { kind: 'gpx'; track: GpxTrack; waypoints: GpxWaypoint[] }
-  | { kind: 'planned'; route: PlannedRoute };
+  | { kind: 'planned'; route: PlannedRoute }
+  | { kind: 'public'; details: RouteDetails };
 
 
 /** Customization of a route created with the route planner (kept apart from the route itself) */
@@ -49,7 +51,7 @@ export type ElevationState =
   | { status: 'ready'; stats: ElevationStats; source: ElevationSource }
   | { status: 'unavailable' };
 
-type ElevationCacheKey = GpxTrack | PlannedRoute;
+type ElevationCacheKey = GpxTrack | PlannedRoute | RouteDetails;
 
 @Injectable({
   providedIn: 'root',
@@ -65,6 +67,8 @@ export class SidebarService {
   readonly trackColorUpdate = signal<{ track: GpxTrack; color: string; weight: number } | null>(null);
   readonly plannedDetails = signal<PlannedRouteDetails>({ ...DEFAULT_PLANNED_DETAILS });
   readonly plannedStyleUpdate = signal<{ color: string; weight: number } | null>(null);
+    /** Id of the public route that has just been reported: the map removes its pin and line */
+  readonly reportedRouteId = signal<number | null>(null);
 
   private elevationRequest?: Subscription;
   /** Elevation already looked up per track/route, so selecting it again does not call the API again */
@@ -119,6 +123,37 @@ export class SidebarService {
     this.select({ kind: 'planned', route });
     this.loadElevation(route, route.points);
   }
+
+  /** Opens the sidebar on a public route loaded from the backend (points may carry elevations) */
+  showPublicRoute(details: RouteDetails): void {
+    this.select({ kind: 'public', details });
+
+    const elevations = details.points.map((p) => p.elevation);
+    const count = elevations.filter((ele) => ele !== null).length;
+    const fileStats = count >= MIN_FILE_ELEVATIONS ? computeElevationStats(elevations) : null;
+    if (fileStats) {
+      this.elevation.set({ status: 'ready', stats: fileStats, source: 'gpx' });
+    } else {
+      this.loadElevation(details, details.points.map((p) => ({ lat: p.latitude, lon: p.longitude })));
+    }
+  }
+
+  /** Drops the selection only if it is a public route (the planned route's details stay untouched) */
+  clearPublicRoute(): void {
+    if (this.selectedRoute()?.kind === 'public') {
+      this.elevationRequest?.unsubscribe();
+      this.selectedRoute.set(null);
+      this.elevation.set({ status: 'idle' });
+    }
+  }
+
+  /** Called after a public route was reported: drops it from the sidebar and tells the map to remove it */
+  markRouteReported(routeId: number): void {
+    this.reportedRouteId.set(routeId);
+    this.clearPublicRoute();
+    this.close();
+  }
+
   updateGpxTrack(track: GpxTrack): void {
     this.trackColorUpdate.set({
       track,
