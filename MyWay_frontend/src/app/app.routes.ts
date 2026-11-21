@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { ExplorePage } from './explore-page/explore-page';
+import { StatisticsPage } from './statistics-page/statistics-page';
 import { RouteDetailsPage } from './route-details-page/route-details-page';
 
 /**
@@ -10,5 +11,6 @@ export const routes: Routes = [
   { path: '', pathMatch: 'full', children: [] },
   { path: 'explore', component: ExplorePage },
   { path: 'explore/:id', component: RouteDetailsPage },
+  { path: 'statistics', component: StatisticsPage },
   { path: '**', redirectTo: '' },
 ];
