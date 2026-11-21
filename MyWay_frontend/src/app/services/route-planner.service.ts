@@ -1,6 +1,7 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
+import { ROUTING_ENDPOINT } from '../config/api.config';
 import { GpxExportService, RouteData } from './gpx-export.service';
 import { GpxService } from './gpx.service';
 
@@ -15,31 +16,14 @@ export interface PlannedRoute {
   durationSeconds: number;
 }
 
-/**
- * Public OSRM server run by FOSSGIS on OpenStreetMap data (no API key, CORS enabled).
- * Usage policy: https://routing.openstreetmap.de/about.html (attribution, max 1 request/s).
- */
-export const OSRM_ROUTE_URL = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot';
-
-/** Points farther than this from a road or path fail with NoSegment instead of being snapped. */
-const MAX_SNAP_DISTANCE_METERS = 1000;
-
 export const ROUTE_NAME = 'MyWay Route';
 
-interface OsrmResponse {
-  code: string;
-  message?: string;
-  routes?: {
-    distance: number;
-    duration: number;
-    geometry: { coordinates: [number, number][] }; // [lon, lat]
-  }[];
+/** Route as the backend sends it (RoutingResponseDTO). */
+export interface RoutingResponse {
+  points: { latitude: number; longitude: number }[];
+  distanceMeters: number;
+  durationSeconds: number;
 }
-
-const OSRM_ERROR_MESSAGES: Record<string, string> = {
-  NoSegment: 'A selected point is too far from any road or path. Pick a point closer to a road.',
-  NoRoute: 'No route found between the selected points.',
-};
 
 @Injectable({
   providedIn: 'root',
@@ -60,7 +44,7 @@ export class RoutePlannerService {
 
   /**
    * Handles a click on the map: the first click sets the start, the second sets the
-   * destination and calculates the route, a further click starts a new route.
+   * destination and asks the backend for the route, a further click starts a new route.
    */
   selectPoint(point: LatLon): void {
     const start = this.start();
@@ -71,6 +55,23 @@ export class RoutePlannerService {
     }
     this.end.set(point);
     this.calculateRoute(start, point);
+  }
+
+  /** Shows a route between the selected points and makes it exportable as GPX. */
+  setRoute(route: PlannedRoute): void {
+    const start = this.start();
+    const end = this.end();
+    this.route.set(route);
+
+    this.gpxExportService.setRoute({
+      name: ROUTE_NAME,
+      points: route.points,
+      waypoints: [
+        ...(start ? [{ ...start, name: 'Start' }] : []),
+        ...(end ? [{ ...end, name: 'Destination' }] : []),
+      ],
+    });
+    this.routeData = this.gpxExportService.route();
   }
 
   /** Removes the points and the route, and cancels a pending request. */
@@ -96,56 +97,36 @@ export class RoutePlannerService {
   }
 
   private calculateRoute(start: LatLon, end: LatLon): void {
-    const coordinates = `${start.lon},${start.lat};${end.lon},${end.lat}`;
-    const params = {
-      overview: 'full',
-      geometries: 'geojson',
-      radiuses: `${MAX_SNAP_DISTANCE_METERS};${MAX_SNAP_DISTANCE_METERS}`,
-    };
+    const params = new HttpParams()
+      .set('fromLat', start.lat)
+      .set('fromLon', start.lon)
+      .set('toLat', end.lat)
+      .set('toLon', end.lon);
 
     this.loading.set(true);
-    this.request = this.http
-      .get<OsrmResponse>(`${OSRM_ROUTE_URL}/${coordinates}`, { params })
-      .subscribe({
-        next: (response) => this.onResponse(response, start, end),
-        error: (err: unknown) => this.onError(err),
-      });
-  }
-
-  private onResponse(response: OsrmResponse, start: LatLon, end: LatLon): void {
-    const best = response.routes?.[0];
-    if (response.code !== 'Ok' || !best) {
-      this.onError(response);
-      return;
-    }
-
-    const points = best.geometry.coordinates.map(([lon, lat]) => ({ lat, lon }));
-    this.route.set({ points, distanceMeters: best.distance, durationSeconds: best.duration });
-
-    this.gpxExportService.setRoute({
-      name: ROUTE_NAME,
-      points,
-      waypoints: [
-        { ...start, name: 'Start' },
-        { ...end, name: 'Destination' },
-      ],
+    this.request = this.http.get<RoutingResponse>(ROUTING_ENDPOINT, { params }).subscribe({
+      next: (response) => {
+        this.loading.set(false);
+        this.setRoute({
+          points: response.points.map(({ latitude, longitude }) => ({ lat: latitude, lon: longitude })),
+          distanceMeters: response.distanceMeters,
+          durationSeconds: response.durationSeconds,
+        });
+      },
+      // The points stay on the map so the user sees what failed; the next click starts over
+      error: (err: unknown) => {
+        this.loading.set(false);
+        this.gpxService.showNotification({ type: 'error', message: routingErrorMessage(err) });
+      },
     });
-    this.routeData = this.gpxExportService.route();
-    this.loading.set(false);
   }
+}
 
-  /** The points stay on the map so the user sees what failed; the next click starts over. */
-  private onError(err: unknown): void {
-    this.loading.set(false);
-    this.gpxService.showNotification({ type: 'error', message: this.errorMessage(err) });
+/** The backend explains routing failures (point too far from a road, no route, ...) in ErrorResponse.message. */
+function routingErrorMessage(err: unknown): string {
+  if (err instanceof HttpErrorResponse && err.status === 0) {
+    return 'The routing service is unreachable. Check that the backend is running and try again.';
   }
-
-  private errorMessage(err: unknown): string {
-    if (err instanceof HttpErrorResponse && err.status === 0) {
-      return 'The routing service is unreachable. Check your connection and try again.';
-    }
-    const body = err instanceof HttpErrorResponse ? err.error : err;
-    const code = (body as Partial<OsrmResponse> | null)?.code;
-    return (code && OSRM_ERROR_MESSAGES[code]) || 'Could not calculate the route. Please try again.';
-  }
+  const message = err instanceof HttpErrorResponse ? (err.error as { message?: unknown } | null)?.message : null;
+  return typeof message === 'string' && message ? message : 'Could not calculate the route. Please try again.';
 }

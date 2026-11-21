@@ -18,6 +18,15 @@ public final class GeoUtils {
                               double minLongitude, double maxLongitude) {
     }
 
+    public static double haversineMeters(double lat1, double lon1, double lat2, double lon2) {
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(a));
+    }
+
     /**
      * Shortest distance from point P to the segment A-B.
      * Uses a flat local projection centred on P (equirectangular), which is
@@ -26,6 +35,15 @@ public final class GeoUtils {
     public static double distanceToSegmentMeters(double pLat, double pLon,
                                                  double aLat, double aLon,
                                                  double bLat, double bLon) {
+        return projectOnSegment(pLat, pLon, aLat, aLon, bLat, bLon).distanceMeters();
+    }
+
+    public record SegmentProjection(double latitude, double longitude, double fraction, double distanceMeters) {
+    }
+
+    public static SegmentProjection projectOnSegment(double pLat, double pLon,
+                                                     double aLat, double aLon,
+                                                     double bLat, double bLon) {
         double cosLat = Math.cos(Math.toRadians(pLat));
 
         double ax = (aLon - pLon) * cosLat * METERS_PER_DEGREE;
@@ -37,15 +55,12 @@ public final class GeoUtils {
         double dy = by - ay;
         double lengthSquared = dx * dx + dy * dy;
 
-        if (lengthSquared == 0.0) {
-            return Math.hypot(ax, ay);
-        }
-
         // Projection of P (the origin) on the line A-B, clamped to the segment
-        double t = -(ax * dx + ay * dy) / lengthSquared;
+        double t = lengthSquared == 0.0 ? 0.0 : -(ax * dx + ay * dy) / lengthSquared;
         t = Math.max(0.0, Math.min(1.0, t));
 
-        return Math.hypot(ax + t * dx, ay + t * dy);
+        return new SegmentProjection(aLat + t * (bLat - aLat), aLon + t * (bLon - aLon), t,
+                Math.hypot(ax + t * dx, ay + t * dy));
     }
 
     /** Shortest distance from a point to a polyline. Infinity if the polyline is empty. */
