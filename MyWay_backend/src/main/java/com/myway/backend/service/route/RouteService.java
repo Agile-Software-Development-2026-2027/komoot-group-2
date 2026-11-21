@@ -100,7 +100,7 @@ public class RouteService {
 
      /** Public routes visible to everyone (public and never reported). */
     public List<RouteSummaryDTO> getVisiblePublicRoutes() {
-        return routeRepository.findVisiblePublicRoutes().stream()
+        return routeRepository.findByIsPublicTrueAndReportsIsEmpty().stream()
                 .map(route -> toSummary(route, false))
                 .toList();
     }
@@ -118,7 +118,7 @@ public class RouteService {
                 List.of(new GeoUtils.GeoPoint(lat, lon)), radiusKm * 1000);
 
         List<NearbyRouteDTO> result = new ArrayList<>();
-        for (Route route : routeRepository.findVisiblePublicInBox(
+        for (Route route : routeRepository.findByIsPublicTrueAndStartLatitudeBetweenAndStartLongitudeBetweenAndReportsIsEmpty(
                 box.minLatitude(), box.maxLatitude(), box.minLongitude(), box.maxLongitude())) {
             double distanceKm = GeoUtils.haversineMeters(
                     lat, lon, route.getStartLatitude(), route.getStartLongitude()) / 1000.0;
@@ -148,7 +148,7 @@ public class RouteService {
 
     /** Returns the picture path only if the route is publicly visible. */
     public String getVisiblePicturePath(Integer routeId) {
-        Route route = routeRepository.findVisiblePublicRoutes().stream()
+        Route route = routeRepository.findByIsPublicTrueAndReportsIsEmpty().stream()
                 .filter(r -> r.getId().equals(routeId))
                 .findFirst()
                 .orElseThrow(RouteNotFoundException::new);
@@ -161,7 +161,7 @@ public class RouteService {
 
     /** Details of a visible public route, including its points. */
     public RouteDetailsDTO getVisibleRouteDetails(Integer routeId) {
-        Route route = routeRepository.findVisiblePublicRoutes().stream()
+        Route route = routeRepository.findByIsPublicTrueAndReportsIsEmpty().stream()
                 .filter(r -> r.getId().equals(routeId))
                 .findFirst()
                 .orElseThrow(RouteNotFoundException::new);
@@ -177,7 +177,7 @@ public class RouteService {
         User reporter = userRepository.findById(reporterEmail)
                 .orElseThrow(UserNotFoundException::new);
 
-        Route route = routeRepository.findVisiblePublicRoutes().stream()
+        Route route = routeRepository.findByIsPublicTrueAndReportsIsEmpty().stream()
                 .filter(r -> r.getId().equals(routeId))
                 .findFirst()
                 .orElseThrow(RouteNotFoundException::new);
@@ -195,14 +195,14 @@ public class RouteService {
 
     /** All routes of the authenticated user, including private and reported ones. */
     public List<RouteSummaryDTO> getMyRoutes(String email) {
-        return routeRepository.findAllByPublisherWithPublisher(email).stream()
+        return routeRepository.findByPublisherEmailOrderByIdDesc(email).stream()
                 .map(route -> toSummary(route, reportRepository.countByRouteId(route.getId()) > 0))
                 .toList();
     }
 
     /** Details of a route owned by the user, even if it is private or reported. */
     public RouteDetailsDTO getOwnRouteDetails(String email, Integer routeId) {
-        Route route = routeRepository.findOwnedById(routeId, email)
+        Route route = routeRepository.findByIdAndPublisherEmail(routeId, email)
                 .orElseThrow(RouteNotFoundException::new);
         boolean reported = reportRepository.countByRouteId(routeId) > 0;
         return RouteDetailsDTO.builder()
@@ -213,7 +213,7 @@ public class RouteService {
 
     /** Picture path of a route owned by the user. */
     public String getOwnPicturePath(String email, Integer routeId) {
-        Route route = routeRepository.findOwnedById(routeId, email)
+        Route route = routeRepository.findByIdAndPublisherEmail(routeId, email)
                 .orElseThrow(RouteNotFoundException::new);
         if (route.getPicturePath() == null) {
             throw new RouteNotFoundException();

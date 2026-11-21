@@ -1,12 +1,12 @@
+
 package com.myway.backend.repository;
 
 import com.myway.backend.model.Route;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import java.util.Optional;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface RouteRepository extends JpaRepository<Route, Integer> {
 
@@ -14,50 +14,24 @@ public interface RouteRepository extends JpaRepository<Route, Integer> {
 
     List<Route> findByPublisherEmail(String email);
 
-    // public routes that nobody has reported
-    @Query("""
-        SELECT r FROM Route r
-        JOIN FETCH r.publisher
-        WHERE r.isPublic = true
-        AND NOT EXISTS (
-            SELECT rr FROM RouteReport rr
-            WHERE rr.route = r
-        )
-        """)
-    List<Route> findVisiblePublicRoutes();
+    // Public routes that nobody has reported
+    @EntityGraph(attributePaths = {"publisher"})
+    List<Route> findByIsPublicTrueAndReportsIsEmpty();
 
-    // all routes of one publisher (publisher is fetched too, open-in-view is off)
-    @Query("""
-        SELECT r FROM Route r
-        JOIN FETCH r.publisher
-        WHERE r.publisher.email = :email
-        ORDER BY r.id DESC
-        """)
-    List<Route> findAllByPublisherWithPublisher(@Param("email") String email);
+    // All routes of one publisher, newest first
+    @EntityGraph(attributePaths = {"publisher"})
+    List<Route> findByPublisherEmailOrderByIdDesc(String email);
 
-    // one route, only if it belongs to the given publisher
-    @Query("""
-        SELECT r FROM Route r
-        JOIN FETCH r.publisher
-        WHERE r.id = :id AND r.publisher.email = :email
-        """)
-    Optional<Route> findOwnedById(@Param("id") Integer id, @Param("email") String email);
+    // One route belonging to the given publisher
+    @EntityGraph(attributePaths = {"publisher"})
+    Optional<Route> findByIdAndPublisherEmail(Integer id, String email);
 
-    
-    // visible public routes whose start point is inside a bounding box (nobody has reported them)
-    @Query("""
-        SELECT r FROM Route r
-        JOIN FETCH r.publisher
-        WHERE r.isPublic = true
-        AND r.startLatitude BETWEEN :minLat AND :maxLat
-        AND r.startLongitude BETWEEN :minLon AND :maxLon
-        AND NOT EXISTS (
-            SELECT rr FROM RouteReport rr
-            WHERE rr.route = r
-        )
-        """)
-    List<Route> findVisiblePublicInBox(@Param("minLat") double minLat,
-                                       @Param("maxLat") double maxLat,
-                                       @Param("minLon") double minLon,
-                                       @Param("maxLon") double maxLon);
+    // Visible public routes inside a bounding box
+    @EntityGraph(attributePaths = {"publisher"})
+    List<Route> findByIsPublicTrueAndStartLatitudeBetweenAndStartLongitudeBetweenAndReportsIsEmpty(
+            double minLat,
+            double maxLat,
+            double minLon,
+            double maxLon
+    );
 }

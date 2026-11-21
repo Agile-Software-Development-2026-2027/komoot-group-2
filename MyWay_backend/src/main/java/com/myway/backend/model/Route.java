@@ -18,6 +18,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import jakarta.persistence.OneToMany;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "route")
@@ -69,4 +72,7 @@ public class Route {
     @Builder.Default
     @Column(name = "is_public", nullable = false)
     private boolean isPublic = false;
+
+    @OneToMany(mappedBy = "route")
+    private List<RouteReport> reports = new ArrayList<>();
 }
