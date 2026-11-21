@@ -7,6 +7,9 @@ import { RouteDetails, RoutePublishingService } from '../services/route-publishi
 import { formatDistance, formatDuration } from '../utils/route-stats';
 import { AuthService } from '../services/auth.service';
 import { GpxService } from '../services/gpx.service';
+import { WaypointApiService } from '../services/waypoint-api.service';
+import { GpxWaypoint } from '../services/gpx.service';
+import { createWaypointIcon } from '../italy-map/italy-map';
 
 const CATEGORY_COLORS: Record<string, string> = {
   hiking: '#10b981',
@@ -29,6 +32,7 @@ export class RouteDetailsPage implements AfterViewInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly authService = inject(AuthService);
   private readonly gpxService = inject(GpxService);
+  private readonly waypointApi = inject(WaypointApiService);
   private routeId = 0;
 
   protected readonly isReporting = signal(false);
@@ -36,9 +40,16 @@ export class RouteDetailsPage implements AfterViewInit, OnDestroy {
   protected readonly details = signal<RouteDetails | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
+  /** null = not loaded yet; an array (maybe empty) = loaded and shown on the map */
+  protected readonly nearby = signal<GpxWaypoint[] | null>(null);
+  protected readonly isLoadingNearby = signal(false);
+  /** Set to false when the backend says the route is the user's own (403) */
+  protected readonly canShowNearby = signal(true);
+  protected readonly selectedWaypoint = signal<GpxWaypoint | null>(null);
 
   private map?: L.Map;
   private routeGroup?: L.FeatureGroup;
+  private waypointGroup?: L.FeatureGroup;
 
   constructor() {
     const id = Number(this.activatedRoute.snapshot.paramMap.get('id'));
@@ -75,6 +86,7 @@ export class RouteDetailsPage implements AfterViewInit, OnDestroy {
       maxZoom: 19,
     }).addTo(this.map);
     this.map.setView([42.5, 12.5], 5);
+    this.map.on('click', () => this.selectedWaypoint.set(null));
 
     // The data may have arrived before the map was created
     this.drawRoute();
@@ -115,6 +127,68 @@ export class RouteDetailsPage implements AfterViewInit, OnDestroy {
   protected pictureSrc(): string | null {
     const url = this.details()?.route.pictureUrl;
     return url ? `${API_BASE_URL}${url}` : null;
+  }
+
+    protected toggleNearbyWaypoints(): void {
+    if (this.nearby() !== null) {
+      this.hideNearbyWaypoints();
+    } else {
+      this.showNearbyWaypoints();
+    }
+  }
+
+  private showNearbyWaypoints(): void {
+    if (this.isLoadingNearby()) return;
+    this.isLoadingNearby.set(true);
+
+    this.waypointApi.loadNearPublicRoute(this.routeId).subscribe({
+      next: (list) => {
+        this.isLoadingNearby.set(false);
+        this.nearby.set(list);
+        this.drawWaypoints(list);
+      },
+      error: (err: unknown) => {
+        this.isLoadingNearby.set(false);
+        let message = 'Could not load the nearby waypoints. Try again later.';
+        if (err instanceof HttpErrorResponse) {
+          if (err.status === 403) {
+            this.canShowNearby.set(false);
+            message = 'You cannot view nearby waypoints of your own route.';
+          } else if (err.status === 404) {
+            message = 'This route is not available anymore.';
+          }
+        }
+        this.gpxService.showNotification({ type: 'error', message });
+      },
+    });
+  }
+
+  private hideNearbyWaypoints(): void {
+    this.waypointGroup?.remove();
+    this.waypointGroup = undefined;
+    this.nearby.set(null);
+    this.selectedWaypoint.set(null);
+  }
+
+  private drawWaypoints(list: GpxWaypoint[]): void {
+    if (!this.map) return;
+    this.waypointGroup?.remove();
+    this.waypointGroup = L.featureGroup().addTo(this.map);
+
+    for (const wp of list) {
+      L.marker([wp.lat, wp.lon], { icon: createWaypointIcon(wp) })
+        .on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          this.selectedWaypoint.set(wp);
+        })
+        .addTo(this.waypointGroup);
+    }
+
+    // Show the route together with its waypoints
+    if (list.length > 0 && this.routeGroup) {
+      const bounds = this.routeGroup.getBounds().extend(this.waypointGroup.getBounds());
+      this.map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    }
   }
 
   protected distanceText(): string {

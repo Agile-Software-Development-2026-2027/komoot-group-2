@@ -2,36 +2,39 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { OSRM_ROUTE_URL, RoutePlannerService } from './route-planner.service';
+import { PlannedRoute, RoutePlannerService, RoutingResponse } from './route-planner.service';
 import { GpxExportService } from './gpx-export.service';
 import { GpxService } from './gpx.service';
+import { ROUTING_ENDPOINT } from '../config/api.config';
 
 const START = { lat: 41.8902, lon: 12.4922 };
 const END = { lat: 41.9029, lon: 12.4534 };
-const ROUTE_URL = `${OSRM_ROUTE_URL}/12.4922,41.8902;12.4534,41.9029`;
 
-const OK_RESPONSE = {
-  code: 'Ok',
-  routes: [
-    {
-      distance: 4093.9,
-      duration: 3276.4,
-      geometry: {
-        coordinates: [
-          [12.4922, 41.8902],
-          [12.47, 41.895],
-          [12.4534, 41.9029],
-        ],
-      },
-    },
+const RESPONSE: RoutingResponse = {
+  points: [
+    { latitude: 41.8902, longitude: 12.4922 },
+    { latitude: 41.895, longitude: 12.47 },
+    { latitude: 41.9029, longitude: 12.4534 },
   ],
+  distanceMeters: 4093.9,
+  durationSeconds: 3684.5,
+};
+
+const ROUTE: PlannedRoute = {
+  points: [
+    { lat: 41.8902, lon: 12.4922 },
+    { lat: 41.895, lon: 12.47 },
+    { lat: 41.9029, lon: 12.4534 },
+  ],
+  distanceMeters: 4093.9,
+  durationSeconds: 3684.5,
 };
 
 describe('RoutePlannerService', () => {
   let service: RoutePlannerService;
   let http: HttpTestingController;
   let gpxExportService: GpxExportService;
-  let notifySpy: ReturnType<typeof vi.spyOn>;
+  let gpxService: GpxService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -40,7 +43,7 @@ describe('RoutePlannerService', () => {
     service = TestBed.inject(RoutePlannerService);
     http = TestBed.inject(HttpTestingController);
     gpxExportService = TestBed.inject(GpxExportService);
-    notifySpy = vi.spyOn(TestBed.inject(GpxService), 'showNotification').mockImplementation(() => {});
+    gpxService = TestBed.inject(GpxService);
   });
 
   afterEach(() => http.verify());
@@ -48,10 +51,19 @@ describe('RoutePlannerService', () => {
   function selectStartAndEnd() {
     service.selectPoint(START);
     service.selectPoint(END);
-    return http.expectOne((req) => req.url === ROUTE_URL);
   }
 
-  it('should set the start on the first click without calling the routing service', () => {
+  function expectRoutingRequest() {
+    return http.expectOne((req) => req.url === ROUTING_ENDPOINT);
+  }
+
+  /** Selects start and destination and answers the backend request with RESPONSE. */
+  function planRoute() {
+    selectStartAndEnd();
+    expectRoutingRequest().flush(RESPONSE);
+  }
+
+  it('should set the start on the first click without calling the backend', () => {
     service.selectPoint(START);
 
     expect(service.start()).toEqual(START);
@@ -59,81 +71,87 @@ describe('RoutePlannerService', () => {
     http.expectNone(() => true);
   });
 
-  it('should calculate the route on the second click and make it exportable', () => {
-    const req = selectStartAndEnd();
+  it('should ask the backend for the route on the second click', () => {
+    selectStartAndEnd();
+
+    const req = expectRoutingRequest();
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('fromLat')).toBe(String(START.lat));
+    expect(req.request.params.get('fromLon')).toBe(String(START.lon));
+    expect(req.request.params.get('toLat')).toBe(String(END.lat));
+    expect(req.request.params.get('toLon')).toBe(String(END.lon));
+    expect(service.end()).toEqual(END);
     expect(service.loading()).toBe(true);
-    expect(req.request.params.get('geometries')).toBe('geojson');
-    expect(req.request.params.get('overview')).toBe('full');
-    expect(req.request.params.get('radiuses')).toBe('1000;1000');
 
-    req.flush(OK_RESPONSE);
-
+    req.flush(RESPONSE);
     expect(service.loading()).toBe(false);
-    expect(service.route()).toEqual({
-      points: [
-        { lat: 41.8902, lon: 12.4922 },
-        { lat: 41.895, lon: 12.47 },
-        { lat: 41.9029, lon: 12.4534 },
-      ],
-      distanceMeters: 4093.9,
-      durationSeconds: 3276.4,
-    });
+  });
 
+  it('should show the route returned by the backend and make it exportable', () => {
+    planRoute();
+
+    expect(service.route()).toEqual(ROUTE);
     const exported = gpxExportService.route();
-    expect(exported.points).toEqual(service.route()!.points);
+    expect(exported.points).toEqual(ROUTE.points);
     expect(exported.waypoints).toEqual([
       { ...START, name: 'Start' },
       { ...END, name: 'Destination' },
     ]);
   });
 
-  it.each([
-    ['NoSegment', 'too far from any road'],
-    ['NoRoute', 'No route found'],
-    ['InvalidValue', 'Could not calculate the route'],
-  ])('should show an error message when the routing service answers %s', (code, message) => {
-    selectStartAndEnd().flush(
-      { code, message: 'details' },
-      { status: 400, statusText: 'Bad Request' },
-    );
+  it('should show the backend error message and keep the points', () => {
+    const notifySpy = vi.spyOn(gpxService, 'showNotification');
+    selectStartAndEnd();
 
+    const message = 'A selected point is too far from any road or path. Pick a point closer to a road.';
+    expectRoutingRequest().flush({ message }, { status: 422, statusText: 'Unprocessable Content' });
+
+    expect(notifySpy).toHaveBeenCalledWith({ type: 'error', message });
     expect(service.loading()).toBe(false);
     expect(service.route()).toBeNull();
     expect(service.start()).toEqual(START);
     expect(service.end()).toEqual(END);
+  });
+
+  it('should say the routing service is unreachable when the backend does not answer', () => {
+    const notifySpy = vi.spyOn(gpxService, 'showNotification');
+    selectStartAndEnd();
+
+    expectRoutingRequest().error(new ProgressEvent('error'), { status: 0 });
+
     expect(notifySpy).toHaveBeenCalledWith({
       type: 'error',
-      message: expect.stringContaining(message),
+      message: 'The routing service is unreachable. Check that the backend is running and try again.',
     });
   });
 
-  it('should show an error message when the routing service is unreachable', () => {
-    selectStartAndEnd().error(new ProgressEvent('error'));
-
-    expect(notifySpy).toHaveBeenCalledWith({
-      type: 'error',
-      message: expect.stringContaining('unreachable'),
-    });
-  });
-
-  it('should start a new route on a further click and cancel the pending request', () => {
-    const req = selectStartAndEnd();
+  it('should start a new route on a further click', () => {
+    planRoute();
     const newStart = { lat: 45.46, lon: 9.19 };
 
     service.selectPoint(newStart);
 
-    expect(req.cancelled).toBe(true);
     expect(service.start()).toEqual(newStart);
     expect(service.end()).toBeNull();
+    expect(service.route()).toBeNull();
+  });
+
+  it('should cancel a pending request when a new route is started', () => {
+    selectStartAndEnd();
+    const req = expectRoutingRequest();
+
+    service.selectPoint({ lat: 45.46, lon: 9.19 });
+
+    expect(req.cancelled).toBe(true);
     expect(service.loading()).toBe(false);
   });
 
   it('should clear the exported route only while it is still the planned one', () => {
-    selectStartAndEnd().flush(OK_RESPONSE);
+    planRoute();
     service.clear();
     expect(gpxExportService.hasRoute()).toBe(false);
 
-    selectStartAndEnd().flush(OK_RESPONSE);
+    planRoute();
     gpxExportService.setPoints([{ lat: 40, lon: 15 }], 'Uploaded GPX');
     service.clear();
     expect(gpxExportService.route().name).toBe('Uploaded GPX');
@@ -141,7 +159,7 @@ describe('RoutePlannerService', () => {
 
   it('should download the planned route as GPX', () => {
     const downloadSpy = vi.spyOn(gpxExportService, 'downloadGpx').mockReturnValue('<gpx></gpx>');
-    selectStartAndEnd().flush(OK_RESPONSE);
+    planRoute();
 
     service.exportGpx();
 

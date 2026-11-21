@@ -20,6 +20,8 @@ export interface GpxWaypoint {
   isPublic: boolean;
   /** Username of the user who published the waypoint (only for public waypoints). */
   publisher?: string;
+  /** Shortest distance in metres from the track this waypoint was found near (only set by "nearby waypoints"). */
+  distanceMeters?: number;
 }
 
 export interface GpxTrackSegment {

@@ -18,6 +18,8 @@ interface WaypointResponse {
   longitude: number;
   photos: string[];
   publisher: string;
+  /** Only present in "near a track" results. */
+  distanceMeters?: number;
 }
 
 /** Frontend category ('panoramic view') <-> backend enum (PANORAMIC_VIEW). */
@@ -59,9 +61,16 @@ export class WaypointApiService {
       .get<WaypointResponse[]>(WAYPOINT_ENDPOINTS.nearby, { params })
       .pipe(map((list) => list.map(toGpxWaypoint)));
   }
+
+  /** Public waypoints within 1 km of a published public route (403 if the caller is its publisher). */
+  loadNearPublicRoute(routeId: number): Observable<GpxWaypoint[]> {
+    return this.http
+      .get<WaypointResponse[]>(`${API_BASE_URL}/api/routes/public/${routeId}/waypoints`)
+      .pipe(map((list) => list.map(toGpxWaypoint)));
+  }
 }
 
-function toGpxWaypoint(w: WaypointResponse): GpxWaypoint {
+export function toGpxWaypoint(w: WaypointResponse): GpxWaypoint {
   return {
     id: w.id,
     lat: w.latitude,
@@ -72,5 +81,6 @@ function toGpxWaypoint(w: WaypointResponse): GpxWaypoint {
     photos: w.photos.map((url) => (url.startsWith('/') ? `${API_BASE_URL}${url}` : url)),
     publisher: w.publisher,
     isPublic: true,
+    distanceMeters: w.distanceMeters,
   };
 }

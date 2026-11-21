@@ -46,6 +46,8 @@ public class WaypointController {
         return waypointService.findNearby(lat, lon, radiusKm);
     }
 
+
+
     @GetMapping("/pictures/{fileName:.+}")
     public ResponseEntity<Resource> picture(@PathVariable String fileName) {
         Resource picture = waypointService.loadPicture(fileName);
