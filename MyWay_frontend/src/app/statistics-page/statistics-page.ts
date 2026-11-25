@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
 import { StatisticsService } from '../services/statistics.service';
 import { formatDistance, formatDuration } from '../utils/route-stats';
@@ -57,6 +57,12 @@ export class StatisticsPage {
   protected readonly statisticsService = inject(StatisticsService);
 
   protected readonly stats = this.statisticsService.statistics;
+
+  constructor() {
+    effect(() => {
+      if (this.auth.isLoggedIn()) this.statisticsService.load();
+    });
+  }
 
   protected readonly cards = computed(() => {
     const s = this.stats();
