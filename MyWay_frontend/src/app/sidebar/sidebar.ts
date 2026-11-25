@@ -14,7 +14,7 @@ import { ElevationStats, formatDistance, formatDuration } from '../utils/route-s
 import { AuthService } from '../services/auth.service';
 import { GpxExportService, RouteData, TrackPoint } from '../services/gpx-export.service';
 import { RoutePublishingService } from '../services/route-publishing.service';
-import { Folder, SavedRoute, SavedRoutePoint, SavedRoutesService } from '../services/saved-routes.service';
+import { Folder, SavedRoute, SavedRoutesService } from '../services/saved-routes.service';
 import { API_BASE_URL } from '../config/api.config';
 
 
@@ -454,34 +454,44 @@ protected saveTrackChanges(): void {
     }
   }
 
-  /** Converts the selected route (GPX track or planned route) into the points sent to the backend */
-  private extractPoints(): SavedRoutePoint[] {
+  /**
+   * Saved routes point to a Route. A public route already is one; any other route is first
+   * created on the backend as a private Route (own, not visible to others).
+   */
+  private saveRouteToBackend(folderId: number, routeName: string): void {
     const selected = this.sidebar.selectedRoute();
-    if (!selected) return [];
-
-    if (selected.kind === 'planned') {
-      return selected.route.points.map((p) => ({ latitude: p.lat, longitude: p.lon, elevation: null }));
-    }
+    if (!selected) return;
 
     if (selected.kind === 'public') {
-      return selected.details.points.map((p) => ({
-        latitude: p.latitude,
-        longitude: p.longitude,
-        elevation: p.elevation,
-      }));
+      this.saveReference(folderId, routeName, selected.details.route.id);
+      return;
     }
 
-    return selected.track.segments.flatMap((seg) =>
-      seg.points.map(([lat, lon], i) => ({
-        latitude: lat,
-        longitude: lon,
-        elevation: seg.elevations?.[i] ?? null,
-      })),
-    );
+    const summary = this.summary();
+    const data = summary ? this.buildRouteData(routeName) : null;
+    if (!summary || !data || data.points.length < 2) {
+      this.gpxService.showNotification({ type: 'error', message: 'This route has no valid points to save.' });
+      return;
+    }
+
+    this.publishingService
+      .publishRoute({
+        name: routeName,
+        category: summary.category ?? 'hiking',
+        difficulty: summary.difficulty ?? 'intermediate',
+        isPublic: false,
+        distanceMeters: summary.distanceMeters,
+        durationSeconds: summary.durationSeconds,
+        gpxFile: this.gpxExportService.createGpxFile(data, routeName),
+      })
+      .subscribe({
+        next: (created) => this.saveReference(folderId, routeName, created.id),
+        error: (err) => this.notifySaveError('Error saving the route.', err),
+      });
   }
 
-  private saveRouteToBackend(folderId: number, routeName: string): void {
-    this.savedRoutesService.saveRoute(folderId, routeName, this.extractPoints()).subscribe({
+  private saveReference(folderId: number, routeName: string, routeId: number): void {
+    this.savedRoutesService.saveRoute(folderId, routeName, routeId).subscribe({
       next: () => {
         this.gpxService.showNotification({ type: 'success', message: 'Route saved successfully!' });
         this.closeSaveRouteModal();

@@ -1,7 +1,7 @@
 package com.myway.backend.controller;
 
 import com.myway.backend.dto.gpx.SaveRouteRequestDTO;
-import com.myway.backend.model.SavedRoute;
+import com.myway.backend.dto.gpx.SavedRouteDTO;
 import com.myway.backend.service.folder.SavedRouteService;
 import com.myway.backend.util.LoginRequired;
 import lombok.RequiredArgsConstructor;
@@ -23,22 +23,22 @@ public class SavedRouteController {
     // POST /api/saved-routes -> save a route (with points) in one of the user's folders
     @LoginRequired
     @PostMapping
-    public ResponseEntity<SavedRoute> saveRoute(@RequestBody SaveRouteRequestDTO request, Authentication authentication) {
-        SavedRoute saved = savedRouteService.saveRouteToFolder(request, authentication.getName());
+    public ResponseEntity<SavedRouteDTO> saveRoute(@RequestBody SaveRouteRequestDTO request, Authentication authentication) {
+        SavedRouteDTO saved = savedRouteService.saveRouteToFolder(request, authentication.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     // GET /api/saved-routes?folderId=... -> all routes of one of the user's folders
     @LoginRequired
     @GetMapping
-    public List<SavedRoute> getRoutesByFolder(@RequestParam Long folderId, Authentication authentication) {
+    public List<SavedRouteDTO> getRoutesByFolder(@RequestParam Long folderId, Authentication authentication) {
         return savedRouteService.getRoutesByFolderId(folderId, authentication.getName());
     }
 
     // GET /api/saved-routes/{id} -> a single saved route of the user
     @LoginRequired
     @GetMapping("/{id}")
-    public SavedRoute getRouteById(@PathVariable Long id, Authentication authentication) {
+    public SavedRouteDTO getRouteById(@PathVariable Long id, Authentication authentication) {
         return savedRouteService.getRouteById(id, authentication.getName());
     }
 }

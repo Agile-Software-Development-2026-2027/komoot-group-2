@@ -11,12 +11,11 @@ import java.util.Optional;
 @Repository
 public interface SavedRouteRepository extends JpaRepository<SavedRoute, Long> {
 
-    // loads the routes of a folder together with their points
-    @EntityGraph(attributePaths = "points")
+    // open-in-view is disabled: fetch what the DTOs need
+    @EntityGraph(attributePaths = {"route", "route.publisher", "points", "points.waypoint"})
     List<SavedRoute> findByFolderId(Long folderId);
 
-    // loads a single route together with its points
     @Override
-    @EntityGraph(attributePaths = "points")
+    @EntityGraph(attributePaths = {"route", "route.publisher", "points", "points.waypoint", "folder"})
     Optional<SavedRoute> findById(Long id);
 }
