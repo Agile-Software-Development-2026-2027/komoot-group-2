@@ -24,7 +24,7 @@ public class RouteNearbyWaypointsService {
 
     /** @param requesterEmail email of the logged-in user, or null for an anonymous visitor */
     public List<NearbyWaypointDTO> getWaypointsNearRoute(Integer routeId, String requesterEmail) {
-        Route route = routeRepository.findVisiblePublicRoutes().stream()
+        Route route = routeRepository.findByIsPublicTrueAndReportsIsEmpty().stream()
                 .filter(r -> r.getId().equals(routeId))
                 .findFirst()
                 .orElseThrow(RouteNotFoundException::new);

@@ -1,8 +1,12 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ROUTE_ENDPOINTS } from '../config/api.config';
 import { RouteCategory, RouteDifficulty } from './gpx.service';
+import type { LatLon } from './route-planner.service';
+
+/** Radius used to load the public routes around the user. */
+export const NEARBY_ROUTES_RADIUS_KM = 100;
 
 export interface PublishRouteRequest {
   name: string;
@@ -27,6 +31,21 @@ export interface PublishedRoute {
   pictureUrl: string | null;
   publicRoute: boolean;
   reported: boolean;
+}
+
+/** A public route near the user: light data for the map, without the track points. */
+export interface NearbyRoute {
+  id: number;
+  name: string;
+  category: string;
+  difficulty: string;
+  distanceMeters: number | null;
+  estimatedTimeInMinutes: number | null;
+  publisherUsername: string;
+  pictureUrl: string | null;
+  startLatitude: number;
+  startLongitude: number;
+  distanceFromUserKm: number;
 }
 
 /** A point of a route, as returned by the backend. */
@@ -70,12 +89,21 @@ export class RoutePublishingService {
     return this.http.post<PublishedRoute>(ROUTE_ENDPOINTS.publish, form);
   }
 
-    getPublicRoutes(): Observable<PublishedRoute[]> {
+  getPublicRoutes(): Observable<PublishedRoute[]> {
     return this.http.get<PublishedRoute[]>(ROUTE_ENDPOINTS.publicList);
   }
 
   getPublicRouteById(id: number): Observable<RouteDetails> {
     return this.http.get<RouteDetails>(ROUTE_ENDPOINTS.publicDetails(id));
+  }
+
+  /** Public routes whose start point is within radiusKm of a position (nearest first). */
+  getNearbyRoutes(center: LatLon, radiusKm = NEARBY_ROUTES_RADIUS_KM): Observable<NearbyRoute[]> {
+    const params = new HttpParams()
+      .set('lat', center.lat)
+      .set('lon', center.lon)
+      .set('radiusKm', radiusKm);
+    return this.http.get<NearbyRoute[]>(ROUTE_ENDPOINTS.nearby, { params });
   }
 
   reportRoute(id: number): Observable<void> {

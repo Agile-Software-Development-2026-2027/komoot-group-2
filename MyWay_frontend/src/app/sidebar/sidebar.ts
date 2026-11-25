@@ -14,6 +14,8 @@ import { ElevationStats, formatDistance, formatDuration } from '../utils/route-s
 import { AuthService } from '../services/auth.service';
 import { GpxExportService, RouteData, TrackPoint } from '../services/gpx-export.service';
 import { RoutePublishingService } from '../services/route-publishing.service';
+import { API_BASE_URL } from '../config/api.config';
+
 
 interface RouteSummary {
   isGpx: boolean;
@@ -22,6 +24,8 @@ interface RouteSummary {
   difficulty?: RouteDifficulty;
   distanceMeters: number;
   durationSeconds: number;
+  isPublicRoute?: boolean;
+  publisher?: string;
 }
 
 interface StatTile {
@@ -75,6 +79,8 @@ export class Sidebar {
   protected readonly publishIsPublic = signal(true);
   protected readonly publishPicture = signal<File | null>(null);
   protected readonly publishError = signal<string | null>(null);
+  protected readonly isReporting = signal(false);
+
   protected readonly previewPhotoUrl = signal<string | null>(null);
   
   /** "Custom Route": color and thickness of the tracks on the map */
@@ -85,6 +91,21 @@ export class Sidebar {
   protected readonly summary = computed<RouteSummary | null>(() => {
     const selected = this.sidebar.selectedRoute();
     if (!selected) return null;
+
+    if (selected.kind === 'public') {
+    const r = selected.details.route;
+    const difficulty = r.difficulty.toLowerCase();
+    return {
+      isGpx: false,
+      isPublicRoute: true,
+      publisher: r.publisherUsername,
+      name: r.name,
+      category: r.category.toLowerCase() as RouteCategory,
+      difficulty: (difficulty === 'medium' ? 'intermediate' : difficulty) as RouteDifficulty,
+      distanceMeters: r.distanceMeters ?? 0,
+      durationSeconds: (r.estimatedTimeInMinutes ?? 0) * 60,
+    };
+  }
 
     if (selected.kind === 'planned') {
       const details = this.sidebar.plannedDetails();
@@ -135,6 +156,10 @@ export class Sidebar {
    */
   protected photos(): string[] {
     const selected = this.sidebar.selectedRoute();
+    if (selected?.kind === 'public') {
+    const url = selected.details.route.pictureUrl;
+    return url ? [`${API_BASE_URL}${url}`] : [];
+  }
     if (selected?.kind !== 'gpx') return [];
     return [...new Set(selected.waypoints.flatMap((wp) => wp.photos ?? []))];
   }
@@ -148,6 +173,14 @@ export class Sidebar {
     if (!selected) {
       return { value: DEFAULT_TRACK_STYLE.color, label: 'Default color' };
     }
+
+    if (selected.kind === 'public') {
+    const publicCategory = selected.details.route.category.toLowerCase() as RouteCategory;
+    return {
+      value: ROUTE_CATEGORY_CONFIG[publicCategory]?.defaultColor ?? DEFAULT_TRACK_STYLE.color,
+      label: `Color category ${publicCategory}`,
+    };
+  }
 
     const isGpx = selected.kind === 'gpx';
     const category = isGpx ? selected.track.category : this.sidebar.plannedDetails().category;
@@ -165,6 +198,10 @@ export class Sidebar {
     const selected = this.sidebar.selectedRoute();
     if (selected?.kind === 'gpx') {
       return selected.track.weight ?? this.trackStyle().weight;
+    }
+
+    if (selected?.kind === 'public') {
+      return 5;
     }
     return this.sidebar.plannedDetails().weight;
   }  
@@ -239,6 +276,46 @@ protected saveTrackChanges(): void {
   this.closeEditTrackModal();
 }
 
+  /** Reports the public route shown in the sidebar (login required; the backend refuses your own route). */
+  protected reportPublicRoute(): void {
+    const selected = this.sidebar.selectedRoute();
+    if (!selected || selected.kind !== 'public' || this.isReporting()) return;
+
+    if (!this.authService.isLoggedIn()) {
+      this.gpxService.showNotification({
+        type: 'error',
+        message: 'Please log in to report a route.',
+      });
+      this.authService.requestLogin();
+      return;
+    }
+
+    if (!window.confirm('Report this route as inappropriate or incorrect?')) return;
+
+    const routeId = selected.details.route.id;
+    this.isReporting.set(true);
+    this.publishingService.reportRoute(routeId).subscribe({
+      next: () => {
+        this.isReporting.set(false);
+        this.sidebar.markRouteReported(routeId);
+        this.gpxService.showNotification({
+          type: 'success',
+          message: 'Thank you. The route was reported and is no longer visible to others.',
+        });
+      },
+      error: (err: unknown) => {
+        this.isReporting.set(false);
+        let message = 'Could not report the route. Try again later.';
+        if (err instanceof HttpErrorResponse) {
+          if (err.status === 403) message = 'You cannot report your own route.';
+          else if (err.status === 409) message = 'You have already reported this route.';
+          else if (err.status === 404) message = 'This route is not available anymore.';
+          else if (err.status === 401) return; // the interceptor opens the login popup
+        }
+        this.gpxService.showNotification({ type: 'error', message });
+      },
+    });
+  }
 
 // Save route logic and folder selection state/handlers connected to the real backend
   protected readonly isSavingRoute = signal(false);
@@ -477,6 +554,7 @@ protected saveTrackChanges(): void {
   private buildRouteData(name: string): RouteData | null {
     const selected = this.sidebar.selectedRoute();
     if (!selected) return null;
+    if (selected.kind === 'public') return null;
 
     if (selected.kind === 'gpx') {
       const points: TrackPoint[] = selected.track.segments.flatMap((seg) =>
