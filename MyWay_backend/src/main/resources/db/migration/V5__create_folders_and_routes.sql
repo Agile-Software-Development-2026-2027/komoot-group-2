@@ -1,7 +1,7 @@
 CREATE TABLE folders (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    user_email VARCHAR(255) NOT NULL
+    user_email VARCHAR(255) NOT NULL REFERENCES users (email) ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TABLE saved_routes (

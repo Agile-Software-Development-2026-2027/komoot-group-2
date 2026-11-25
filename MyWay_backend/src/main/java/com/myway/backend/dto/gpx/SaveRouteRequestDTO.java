@@ -1,6 +1,5 @@
 package com.myway.backend.dto.gpx;
 
-import com.myway.backend.dto.gpx.PointDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

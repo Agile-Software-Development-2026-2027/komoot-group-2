@@ -24,6 +24,12 @@ export const ROUTE_ENDPOINTS = {
   report: (id: number) => `${API_BASE_URL}/api/routes/${id}/report`,
 } as const;
 
+/** Backend endpoints for the user's folders and the routes saved in them (login required). */
+export const FOLDER_ENDPOINTS = {
+  folders: `${API_BASE_URL}/api/folders`,
+  savedRoutes: `${API_BASE_URL}/api/saved-routes`,
+} as const;
+
 /** GET ?fromLat=&fromLon=&toLat=&toLon= returns the walking route between two points. */
 export const ROUTING_ENDPOINT = `${API_BASE_URL}/api/routing`;
 

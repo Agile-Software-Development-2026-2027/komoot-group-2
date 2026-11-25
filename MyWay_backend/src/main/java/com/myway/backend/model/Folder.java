@@ -1,7 +1,6 @@
 package com.myway.backend.model;
 
 import jakarta.persistence.*;
-import java.util.List;
 
 @Entity
 @Table(name = "folders")
