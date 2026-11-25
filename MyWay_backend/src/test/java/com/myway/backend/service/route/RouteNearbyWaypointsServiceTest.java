@@ -29,13 +29,13 @@ class RouteNearbyWaypointsServiceTest {
         User publisher = mock(User.class);
         when(publisher.getEmail()).thenReturn("owner@test.com");
         Route route = Route.builder().id(7).gpxPath("x.gpx").publisher(publisher).isPublic(true).build();
-        when(routes.findVisiblePublicRoutes()).thenReturn(List.of(route));
+        when(routes.findByIsPublicTrueAndReportsIsEmpty()).thenReturn(List.of(route));
         return route;
     }
 
     @Test
     void unknownOrHiddenRouteIsNotFound() {
-        when(routes.findVisiblePublicRoutes()).thenReturn(List.of());
+        when(routes.findByIsPublicTrueAndReportsIsEmpty()).thenReturn(List.of());
         assertThrows(RouteNotFoundException.class, () -> service.getWaypointsNearRoute(7, null));
     }
 

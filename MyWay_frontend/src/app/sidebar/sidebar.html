@@ -38,8 +38,11 @@
 
       @if (summary(); as route) {
       <div class="route-heading">
-        <span class="route-caption">{{ route.isGpx ? 'GPX route' : 'Created route' }}</span>
-        <h2 class="route-name">{{ route.name }}</h2>
+        <span class="route-caption">{{ route.isPublicRoute ? 'Public route' : route.isGpx ? 'GPX route' : 'Created route' }}</span>        
+        <h3 class="route-name">{{ route.name }}</h3>
+        @if (route.publisher) {
+        <p class="stats-note">Published by {{ route.publisher }}</p>
+        }
       </div>
 
       @if (route.category || route.difficulty) {
@@ -108,6 +111,7 @@
       </div>
 
       <!-- Custom Route -->
+      @if (!route.isPublicRoute) {
       <button type="button" class="btn-primary" (click)="openEditTrackModal()">
         Custom Route
       </button>
@@ -115,6 +119,13 @@
       <button type="button" class="btn-secondary" (click)="openPublishModal()">
         Publish Route
       </button>
+      }
+
+      @if (route.isPublicRoute) {
+      <button type="button" class="btn-secondary" [disabled]="isReporting()" (click)="reportPublicRoute()">
+        {{ isReporting() ? 'Reporting…' : 'Report' }}
+      </button>
+      }
       } @else {
       <div class="empty-state">
         <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"

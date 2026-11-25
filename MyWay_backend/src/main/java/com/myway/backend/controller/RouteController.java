@@ -23,6 +23,7 @@ import java.util.List;
 import com.myway.backend.dto.route.RouteDetailsDTO;
 import com.myway.backend.dto.waypoint.NearbyWaypointDTO;
 import com.myway.backend.service.route.RouteNearbyWaypointsService;
+import com.myway.backend.dto.route.NearbyRouteDTO;
 
 
 @RestController
@@ -57,6 +58,14 @@ public class RouteController {
     @GetMapping("/public")
     public List<RouteSummaryDTO> getPublicRoutes() {
         return routeService.getVisiblePublicRoutes();
+    }
+
+    // No @LoginRequired: anyone can see the public routes near a position
+    @GetMapping("/nearby")
+    public List<NearbyRouteDTO> getNearbyRoutes(@RequestParam double lat,
+                                                @RequestParam double lon,
+                                                @RequestParam(defaultValue = "100") double radiusKm) {
+        return routeService.findNearby(lat, lon, radiusKm);
     }
 
     @GetMapping("/{id}/picture")
