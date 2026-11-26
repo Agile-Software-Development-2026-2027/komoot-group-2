@@ -6,14 +6,10 @@ import type { RoutePoint, PublishedRoute} from '../services/route-publishing.ser
 
 
 export const MAX_ALTITUDE_METERS=8000;
-//routes ending up to this distance beyond the radius are shown as "near"
-export const RADIUS_TOLERANCE_METERS= 2000;
-export const MIN_RADIUS_KM =1;
 export const DEFAULT_RADIUS_KM=5;
 export const INITIAL_RADIUS_SLIDE_MAX_KM =50;
 export const DEFAULT_TIME_HOUR= 0.5;
 export const INITIAL_TIME_SLIDE_MAX_HOUR= 24;
-export const MIN_ROUTE_KM= 1;
 export const WALKING_SPEED_KMH= 4;
 export const ALL_DIFFICULTIES: RouteDifficulty[]= ['easy','intermediate','hard'];
 export const MIN_FAILED_FOR_NEAR=1;
@@ -58,42 +54,39 @@ function startPointPublicRoute (points: RoutePoint[]) : LatLon| null {
     return {lat: first.latitude, lon: first.longitude};
 }
 
-//depending on the distance between first point of route and center of radius return 'visible', 'near', 'hidden'
-function radiusMatch (startPoint: LatLon |null , filters: RouteFilters): Visibility {
+//true if the start point of route is inside the radius around the center
+function radiusMatch (startPoint: LatLon |null , filters: RouteFilters): boolean {
     const center =filters.center;
-    if(!center) return 'visible';
-    if(!startPoint) return 'visible';
+    if(!center || ! startPoint) return true;
     const distance = distanceMeters(center, startPoint); 
     const radiusMeters = filters.radiusKm * 1000;
-    if( distance <= radiusMeters) return 'visible';
-    if(distance <= radiusMeters + RADIUS_TOLERANCE_METERS ) return 'near';
-    return 'hidden';
+    return distance <= radiusMeters;
 }
 // we apply radiusMatch to GpxTrack
-function trackRadiusMatch (track: GpxTrack, filters: RouteFilters): Visibility{
+function trackRadiusMatch (track: GpxTrack, filters: RouteFilters): boolean {
     return radiusMatch(startPointTrackRoute(track),filters);
 }
 //we apply radiusMatch to PublicRoute
-export function pubRouteRadiusMatch(points:RoutePoint[], filters: RouteFilters): Visibility{
+export function pubRouteRadiusMatch(points:RoutePoint[], filters: RouteFilters): boolean{
      return radiusMatch(startPointPublicRoute(points), filters);
 }
 
 // The slider of radius has no limit because when it reaches the end it doubles each time
 export function radiusSliderMax (radiusKm: number): number {
     let max = INITIAL_RADIUS_SLIDE_MAX_KM;
-    while (radiusKm > max) {
+    while (radiusKm >= max) {
         max*=2;
     }
     return max; 
 }
 // hours needed to be compared with the maximum time chosen by the user
-export function timeMatch( hours:number |null , filters: RouteFilters): Visibility {
+function timeMatch( hours:number |null , filters: RouteFilters): boolean {
       const maxHours= filters.time;
-      if (maxHours === null || hours === null) return 'visible';
-      return hours <= maxHours ? 'visible' : 'hidden';
+      if (maxHours === null || hours === null) return true;
+      return hours <= maxHours;
 }
 // time to cover the whole Track and compare with filter
-function trackTimeMatch (track:GpxTrack, filters: RouteFilters): Visibility {
+function trackTimeMatch (track:GpxTrack, filters: RouteFilters): boolean {
     const seconds = track.estimatedDurationSeconds; 
     if (seconds == null){
         return timeMatch( null, filters);
@@ -102,7 +95,7 @@ function trackTimeMatch (track:GpxTrack, filters: RouteFilters): Visibility {
     return timeMatch(hours, filters);
 }
 // time to cover the whole public route and compare with filter
-export function pubRouteTimeMatch (route: PublishedRoute, filters: RouteFilters): Visibility {
+export function pubRouteTimeMatch (route: PublishedRoute, filters: RouteFilters): boolean {
     const minutes= route.estimatedTimeInMinutes;
     if (minutes == null) {
         return timeMatch(null,filters);
@@ -113,22 +106,22 @@ export function pubRouteTimeMatch (route: PublishedRoute, filters: RouteFilters)
 // The slider of time has non limit because when it reaches the end it doubles each time
 export function timeSliderMax (timeHour: number): number {
     let max= INITIAL_TIME_SLIDE_MAX_HOUR;
-    while (timeHour> max) {
+    while (timeHour>= max) {
         max*=2;
     }
     return max;
 }
 // filter of time for waypoints
-function waypointTime (waypoint: GpxWaypoint, filters: RouteFilters ): Visibility {
+function waypointTime (waypoint: GpxWaypoint, filters: RouteFilters ): boolean {
     const center = filters.center;
-    if (filters.time === null || !center) return 'visible';
+    if (filters.time === null || !center) return true;
     const km = distanceMeters(center, {lat: waypoint.lat, lon: waypoint.lon})/1000;
      return timeMatch( km / WALKING_SPEED_KMH, filters);
 }
 // true if the route is not longer than tha maximum chosen by the user
-export function lengthMatches (km: number | null , filters: RouteFilters): boolean {
+function lengthMatches (km: number | null , filters: RouteFilters): boolean {
     const maxKm = filters.totKm;
-    if (maxKm === null || km == null) return true;
+    if (maxKm === null || km === null) return true;
     return km <= maxKm;
 }
 //it takes meters of route by GpxTrack, convert in km and ask to lengthMatches if is visible(true) or not
@@ -140,7 +133,7 @@ function trackLengthMatches (track: GpxTrack, filters: RouteFilters) : boolean {
  const km= meters/1000;
  return  lengthMatches(km, filters);
 }
-export function pbRouteLengthMatches(route: PublishedRoute, filters: RouteFilters): boolean{
+export function pubRouteLengthMatches(route: PublishedRoute, filters: RouteFilters): boolean{
     const meters= route.distanceMeters;
     if (meters == null) {
         return true;
@@ -181,7 +174,7 @@ function maxElevationPubRoute (points: RoutePoint[]): number | null {
     return value!== null && value > limit;
  }
  
-  export function computeDifficulty (km: number|null, ascentMt: number|null, hours:number|null ): RouteDifficulty{
+  function computeDifficulty (km: number|null, ascentMt: number|null, hours:number|null ): RouteDifficulty{
    if(isAbove (km,15)|| isAbove(ascentMt,700)||isAbove(hours,4)){
     return 'hard';
    }
@@ -202,7 +195,7 @@ export function pubRouteDifficulty(route: PublishedRoute, points: RoutePoint[]):
 }
 // true if difficulty of the route is one of the buttons that are on
 function difficultyMatches(difficulty: RouteDifficulty |undefined, filters: RouteFilters): boolean {
-    if(difficulty==undefined) return true;
+    if(difficulty===undefined) return true;
     return filters.difficulties.includes(difficulty);
 }
 //returns true if the filter is active
@@ -222,7 +215,7 @@ function trackAltitudeMatches(track:GpxTrack,filters:RouteFilters): boolean{
 function pubRouteAltitudeMatches(points: RoutePoint[], filters: RouteFilters): boolean{
     return altitudeMatches(maxElevationPubRoute(points),filters);
 }
-//if 0 filters failed: visible, if 2 limits failed: near (dashed), otherwise hidden
+//if 0 filters failed: visible, if 1 o 2 limits failed: near (dashed), otherwise hidden
 function summarize(failed:string[]): FilterResult{
     if (failed.length===0) return {visibility: 'visible', failed};
     if (failed.length>= MIN_FAILED_FOR_NEAR && failed.length<= MAX_FAILED_FOR_NEAR){
@@ -232,31 +225,31 @@ function summarize(failed:string[]): FilterResult{
 }
  export function evaluateTrack (track: GpxTrack, filters: RouteFilters): FilterResult{
     const failed : string[]=[];
-    if (trackRadiusMatch(track,filters) !== 'visible') failed.push('Outside the selected radius');
-    if (trackTimeMatch(track,filters) !== 'visible') failed.push('Outside the selected time');
+    if (! trackRadiusMatch(track,filters)) failed.push('Outside the selected radius');
+    if (!trackTimeMatch(track,filters)) failed.push('Outside the selected time');
     if (!difficultyMatches(trackDifficulty(track),filters)) failed.push('Difficulty not in the selection');
-    if (!trackLengthMatches(track,filters)) failed.push('Over the selected length');
-    if (!trackAltitudeMatches(track,filters)) failed.push('Over the selected elevation');
+    if (!trackLengthMatches(track,filters)) failed.push('Outside the selected length');
+    if (!trackAltitudeMatches(track,filters)) failed.push('Outside the selected elevation');
     return summarize(failed);
  }
 export function evaluatePublicRoute(route: PublishedRoute, points: RoutePoint[], filters: RouteFilters): FilterResult{
     const failed: string[]= [];
-    if(pubRouteRadiusMatch(points,filters) !== 'visible') failed.push('Outside the selected radius');
-    if(pubRouteTimeMatch(route,filters) !== 'visible') failed.push('Over the selected time');
+    if(!pubRouteRadiusMatch(points,filters)) failed.push('Outside the selected radius');
+    if(!pubRouteTimeMatch(route,filters)) failed.push('Outside the selected time');
     if(!difficultyMatches(pubRouteDifficulty(route,points),filters)) failed.push('Difficulty not in the selection');
-    if(!pbRouteLengthMatches(route,filters)) failed.push('Over the selected length');
-    if(!pubRouteAltitudeMatches(points,filters)) failed.push('Over the selected elevation');
+    if(!pubRouteLengthMatches(route,filters)) failed.push('Outside the selected length');
+    if(!pubRouteAltitudeMatches(points,filters)) failed.push('Outside the selected elevation');
     return summarize(failed);
 }
 
 export function matchWaypoint (waypoint: GpxWaypoint,filters: RouteFilters): FilterResult {
     const failed: string[]=[];
     const radius = radiusMatch({ lat: waypoint.lat, lon: waypoint.lon }, filters);
-    if (radius !== 'visible') failed.push('Outside the selected radius');
+    if (!radius) failed.push('Outside the selected radius');
     if (isAltitudeFilterActive(filters) && waypoint.ele !== undefined && waypoint.ele > filters.maxAltitude) {
-        failed.push('Over the selected elevation');
+        failed.push('Outside the selected elevation');
     }
     const time= waypointTime(waypoint,filters);
-    if (time === 'hidden') failed.push('Over the selected time');
+    if (!time) failed.push('Outside the selected time');
     return summarize(failed);
 }
