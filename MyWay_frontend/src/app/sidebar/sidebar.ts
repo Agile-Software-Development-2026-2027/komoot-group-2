@@ -16,6 +16,7 @@ import { GpxExportService, RouteData, TrackPoint } from '../services/gpx-export.
 import { RoutePublishingService } from '../services/route-publishing.service';
 import { Folder, SavedRoute, SavedRoutePoint, SavedRoutesService } from '../services/saved-routes.service';
 import { API_BASE_URL } from '../config/api.config';
+import { RouteSearchComponent } from './route-search/route-search.component';
 
 
 interface RouteSummary {
@@ -50,7 +51,7 @@ const PRESET_TRACK_COLORS = [
 
 @Component({
   selector: 'app-sidebar',
-  imports: [],
+  imports: [RouteSearchComponent],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css',
 })

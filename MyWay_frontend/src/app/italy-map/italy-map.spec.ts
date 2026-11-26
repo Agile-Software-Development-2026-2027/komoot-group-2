@@ -141,6 +141,41 @@ describe('ItalyMap', () => {
     expect(host.querySelector('.route-panel-btn.primary')?.textContent).toContain('Export GPX');
   });
 
+  it('should draw a searched public route and smoothly zoom to it when focused from the sidebar', async () => {
+    const sidebar = TestBed.inject(SidebarService);
+    const map = (component as unknown as { map: L.Map }).map;
+    const flyToBoundsSpy = vi.spyOn(map, 'flyToBounds').mockImplementation(() => map);
+
+    sidebar.focusPublicRoute({
+      route: {
+        id: 77,
+        name: 'Amalfi Coast Path',
+        category: 'HIKING',
+        difficulty: 'MEDIUM',
+        distanceMeters: 8500,
+        estimatedTimeInMinutes: 140,
+        publisherUsername: 'luca',
+        pictureUrl: null,
+        publicRoute: true,
+        reported: false,
+      },
+      points: [
+        { latitude: 40.633, longitude: 14.602, elevation: 120, name: null },
+        { latitude: 40.641, longitude: 14.581, elevation: 310, name: null },
+      ],
+    });
+    await fixture.whenStable();
+
+    const publicRouteLayers = (
+      component as unknown as { publicRouteLayer: L.FeatureGroup }
+    ).publicRouteLayer.getLayers();
+    expect(publicRouteLayers.some((layer) => layer instanceof L.Polyline)).toBe(true);
+    expect(flyToBoundsSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ duration: 1.0, maxZoom: 16 }),
+    );
+  });
+
   describe('public waypoints', () => {
     let http: HttpTestingController;
     const privateWp = (): GpxWaypoint => ({ lat: 46, lon: 11, desc: 'View', categories: ['peak'], photos: [], isPublic: false });

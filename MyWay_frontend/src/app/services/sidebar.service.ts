@@ -67,8 +67,10 @@ export class SidebarService {
   readonly trackColorUpdate = signal<{ track: GpxTrack; color: string; weight: number } | null>(null);
   readonly plannedDetails = signal<PlannedRouteDetails>({ ...DEFAULT_PLANNED_DETAILS });
   readonly plannedStyleUpdate = signal<{ color: string; weight: number } | null>(null);
-    /** Id of the public route that has just been reported: the map removes its pin and line */
+  /** Id of the public route that has just been reported: the map removes its pin and line */
   readonly reportedRouteId = signal<number | null>(null);
+  /** Public route chosen from the sidebar search list: the map draws it and zooms to it */
+  readonly focusedPublicRoute = signal<{ details: RouteDetails } | null>(null);
 
   private elevationRequest?: Subscription;
   /** Elevation already looked up per track/route, so selecting it again does not call the API again */
@@ -138,11 +140,18 @@ export class SidebarService {
     }
   }
 
+  /** Shows a public route selected from the sidebar search list and asks the map to zoom to it */
+  focusPublicRoute(details: RouteDetails): void {
+    this.showPublicRoute(details);
+    this.focusedPublicRoute.set({ details });
+  }
+
   /** Drops the selection only if it is a public route (the planned route's details stay untouched) */
   clearPublicRoute(): void {
     if (this.selectedRoute()?.kind === 'public') {
       this.elevationRequest?.unsubscribe();
       this.selectedRoute.set(null);
+      this.focusedPublicRoute.set(null);
       this.elevation.set({ status: 'idle' });
     }
   }
@@ -174,6 +183,7 @@ export class SidebarService {
   clearSelection(): void {
     this.elevationRequest?.unsubscribe();
     this.selectedRoute.set(null);
+    this.focusedPublicRoute.set(null);
     this.elevation.set({ status: 'idle' });
     this.plannedDetails.set({ ...DEFAULT_PLANNED_DETAILS });
     this.plannedStyleUpdate.set(null);

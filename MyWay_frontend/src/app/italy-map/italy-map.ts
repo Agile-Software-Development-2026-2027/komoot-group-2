@@ -380,6 +380,17 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       { injector: this.injector },
     );
 
+    // A public route was selected from the sidebar search list: draw it and zoom smoothly to it
+    effect(
+      () => {
+        const request = this.sidebar.focusedPublicRoute();
+        if (request) {
+          untracked(() => this.drawPublicRoute(request.details, true));
+        }
+      },
+      { injector: this.injector },
+    );
+
     // Subscribe to loaded GPX
     this.gpxSubscription = this.gpxService.currentGpx$.subscribe((gpx) => {
       if (gpx) {
@@ -715,8 +726,8 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     });
   }
 
-  /** Draws the whole line of a public route (and an end marker), replacing the previous one. */
-  private drawPublicRoute(details: RouteDetails): void {
+  /** Draws the whole line of a public route (and start/end markers), replacing the previous one. */
+  private drawPublicRoute(details: RouteDetails, animate = false): void {
     if (!this.map || !this.publicRouteLayer) return;
     this.publicRouteLayer.clearLayers();
     if (details.points.length === 0) return;
@@ -726,16 +737,32 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     const color = ROUTE_CATEGORY_CONFIG[category]?.defaultColor ?? '#10b981';
 
     L.polyline(latLngs, { color, weight: 5, opacity: 0.9, lineJoin: 'round' }).addTo(this.publicRouteLayer);
+    if (!this.nearbyMarkers.has(details.route.id)) {
+      L.marker(latLngs[0], { icon: createRouteStartIcon(color), title: details.route.name })
+        .bindTooltip(details.route.name)
+        .addTo(this.publicRouteLayer);
+    }
     L.marker(latLngs[latLngs.length - 1], { icon: END_ICON, title: 'End' }).addTo(this.publicRouteLayer);
+
+    const bounds = L.latLngBounds(latLngs);
+    if (!this.italyBounds.contains(bounds)) {
+      this.map.setMaxBounds(undefined);
+    }
 
     // Keep the line out from under the sidebar, which opens on the right
     const padding = 40;
     const rightPadding = Math.min(SIDEBAR_MAP_OVERLAP_PX, this.map.getSize().x / 2);
-    this.map.fitBounds(L.latLngBounds(latLngs), {
+    const fitOptions: L.FitBoundsOptions = {
       paddingTopLeft: [padding, padding],
       paddingBottomRight: [rightPadding, padding],
       maxZoom: 16,
-    });
+    };
+
+    if (animate) {
+      this.map.flyToBounds(bounds, { ...fitOptions, duration: 1.0 });
+    } else {
+      this.map.fitBounds(bounds, fitOptions);
+    }
   }
 
   /** Removes the pin and the line of a route that has just been reported. */

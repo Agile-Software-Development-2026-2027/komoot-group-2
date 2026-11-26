@@ -1,0 +1,139 @@
+<section class="panel-section search-section" aria-labelledby="sidebar-search-title">
+  <h3 id="sidebar-search-title" class="section-title">Search routes</h3>
+
+  <div class="search-input-wrap">
+    <svg class="search-input-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+    <input type="search" class="search-input" [value]="searchQuery()"
+      (input)="onSearchInput($any($event.target).value)"
+      placeholder="Search routes or a place…" aria-label="Search routes or a place" />
+    @if (searchQuery()) {
+    <button type="button" class="search-clear-btn" (click)="clearSearch()" aria-label="Clear search">
+      &times;
+    </button>
+    }
+  </div>
+
+  @if (selectedPlace(); as place) {
+  <div class="place-header">
+    <div class="place-header-top">
+      <div class="place-header-info">
+        <span class="place-header-title">Routes in {{ place.name }}</span>
+        @if (place.subtitle) {
+        <span class="place-header-subtitle">{{ place.subtitle }}</span>
+        }
+      </div>
+      <button type="button" class="place-back-btn" (click)="clearSelectedPlace()">Back</button>
+    </div>
+
+    <div class="radius-chips" role="group" aria-label="Search radius">
+      @for (radius of placeRadiusOptions; track radius) {
+      <button type="button" class="radius-chip" [class.selected]="placeRadiusKm() === radius"
+        (click)="setPlaceRadius(radius)">
+        {{ radius }} km
+      </button>
+      }
+    </div>
+  </div>
+
+  @if (isLoadingPlaceRoutes()) {
+  <p class="search-status">Loading routes in {{ place.name }}…</p>
+  } @else if (searchError(); as err) {
+  <p class="search-error" role="alert">{{ err }}</p>
+  } @else if (placeRoutes().length === 0) {
+  <p class="search-status">No public routes found within {{ placeRadiusKm() }} km of {{ place.name }}.</p>
+  } @else {
+  <ul class="search-results-list" aria-label="Routes in selected place">
+    @for (route of placeRoutes(); track route.id) {
+    <li>
+      <button type="button" class="search-route-item"
+        [class.active]="activePublicRouteId() === route.id"
+        [disabled]="loadingRouteId() === route.id"
+        (click)="selectSearchRoute(route.id)">
+        <div class="search-route-top">
+          <span class="search-route-name">{{ route.name }}</span>
+          <span class="search-route-distance">{{ formatPlaceDistance(route.distanceFromUserKm) }}</span>
+        </div>
+        <div class="search-route-meta">
+          <span class="search-chip route-cat-{{ route.category.toLowerCase() }}">{{ route.category.toLowerCase() }}</span>
+          <span class="search-chip diff-{{ formatDifficulty(route.difficulty) }}">{{ formatDifficulty(route.difficulty) }}</span>
+          <span class="search-meta-text">{{ formatRouteDistance(route.distanceMeters) }} · {{ formatRouteTime(route.estimatedTimeInMinutes) }}</span>
+        </div>
+        <span class="search-route-author">by {{ route.publisherUsername }}</span>
+      </button>
+    </li>
+    }
+  </ul>
+  }
+  } @else if (searchQuery().trim()) {
+  @if (isSearching()) {
+  <p class="search-status">Searching…</p>
+  } @else {
+  @if (searchError(); as err) {
+  <p class="search-error" role="alert">{{ err }}</p>
+  }
+
+  @if (placeResults().length > 0) {
+  <div class="search-group">
+    <span class="search-group-label">Places — see all routes in area</span>
+    <ul class="search-results-list" aria-label="Matching places">
+      @for (place of placeResults(); track place.id) {
+      <li>
+        <button type="button" class="search-place-item" (click)="selectPlace(place)">
+          <svg class="place-pin-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+          <span class="search-place-text">
+            <span class="search-place-name">{{ place.name }}</span>
+            @if (place.subtitle) {
+            <span class="search-place-sub">{{ place.subtitle }}</span>
+            }
+          </span>
+          <span class="search-place-action">View routes</span>
+        </button>
+      </li>
+      }
+    </ul>
+  </div>
+  }
+
+  @if (routeResults().length > 0) {
+  <div class="search-group">
+    <span class="search-group-label">Routes ({{ routeResults().length }})</span>
+    <ul class="search-results-list" aria-label="Matching routes">
+      @for (route of routeResults(); track route.id) {
+      <li>
+        <button type="button" class="search-route-item"
+          [class.active]="activePublicRouteId() === route.id"
+          [disabled]="loadingRouteId() === route.id"
+          (click)="selectSearchRoute(route.id)">
+          <div class="search-route-top">
+            <span class="search-route-name">{{ route.name }}</span>
+            @if (loadingRouteId() === route.id) {
+            <span class="search-route-distance">Loading…</span>
+            }
+          </div>
+          <div class="search-route-meta">
+            <span class="search-chip route-cat-{{ route.category.toLowerCase() }}">{{ route.category.toLowerCase() }}</span>
+            <span class="search-chip diff-{{ formatDifficulty(route.difficulty) }}">{{ formatDifficulty(route.difficulty) }}</span>
+            <span class="search-meta-text">{{ formatRouteDistance(route.distanceMeters) }} · {{ formatRouteTime(route.estimatedTimeInMinutes) }}</span>
+          </div>
+          <span class="search-route-author">by {{ route.publisherUsername }}</span>
+        </button>
+      </li>
+      }
+    </ul>
+  </div>
+  }
+
+  @if (!searchError() && routeResults().length === 0 && placeResults().length === 0) {
+  <p class="search-status">No routes or places found for "{{ searchQuery().trim() }}".</p>
+  }
+  }
+  }
+</section>

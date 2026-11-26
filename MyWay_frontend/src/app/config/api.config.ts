@@ -18,6 +18,7 @@ export const WAYPOINT_ENDPOINTS = {
 export const ROUTE_ENDPOINTS = {
   publish: `${API_BASE_URL}/api/routes/publish`,
   publicList: `${API_BASE_URL}/api/routes/public`,
+  search: `${API_BASE_URL}/api/routes/search`,
   nearby: `${API_BASE_URL}/api/routes/nearby`,
   mine: `${API_BASE_URL}/api/routes/mine`,
   publicDetails: (id: number) => `${API_BASE_URL}/api/routes/public/${id}`,
