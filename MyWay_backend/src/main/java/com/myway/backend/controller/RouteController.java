@@ -60,6 +60,12 @@ public class RouteController {
         return routeService.getVisiblePublicRoutes();
     }
 
+    // No @LoginRequired: anyone can search visible public routes by name
+    @GetMapping("/search")
+    public List<RouteSummaryDTO> searchPublicRoutes(@RequestParam(name = "q", defaultValue = "") String query) {
+        return routeService.searchPublicRoutes(query);
+    }
+
     // No @LoginRequired: anyone can see the public routes near a position
     @GetMapping("/nearby")
     public List<NearbyRouteDTO> getNearbyRoutes(@RequestParam double lat,

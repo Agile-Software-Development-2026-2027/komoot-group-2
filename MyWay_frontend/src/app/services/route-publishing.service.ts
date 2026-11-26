@@ -93,6 +93,12 @@ export class RoutePublishingService {
     return this.http.get<PublishedRoute[]>(ROUTE_ENDPOINTS.publicList);
   }
 
+  /** Visible public routes whose name matches the search query (case-insensitive). */
+  searchPublicRoutes(query: string): Observable<PublishedRoute[]> {
+    const params = new HttpParams().set('q', query.trim());
+    return this.http.get<PublishedRoute[]>(ROUTE_ENDPOINTS.search, { params });
+  }
+
   getPublicRouteById(id: number): Observable<RouteDetails> {
     return this.http.get<RouteDetails>(ROUTE_ENDPOINTS.publicDetails(id));
   }

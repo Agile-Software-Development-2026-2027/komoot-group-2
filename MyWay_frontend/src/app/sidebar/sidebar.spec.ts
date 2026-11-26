@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from './sidebar';
+import { ROUTE_ENDPOINTS } from '../config/api.config';
+import { OPEN_METEO_GEOCODING_URL } from '../services/geocoding.service';
 import { SidebarService } from '../services/sidebar.service';
 import { RoutePlannerService } from '../services/route-planner.service';
 import { OPEN_METEO_ELEVATION_URL } from '../services/elevation.service';
@@ -163,5 +165,132 @@ describe('Sidebar', () => {
     expect(track.weight).toBe(8);
     expect(swatch.style.height).toBe('8px');
     expect(swatch.style.backgroundColor).toBe('rgb(18, 52, 86)');
+  });
+
+  describe('route search', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('should show a search bar in the sidebar and display matching routes in a list while typing', () => {
+      vi.useFakeTimers();
+      sidebar.open();
+      fixture.detectChanges();
+
+      const input = host.querySelector<HTMLInputElement>('.search-input')!;
+      expect(input).toBeTruthy();
+
+      input.value = 'Vesuvio';
+      input.dispatchEvent(new Event('input'));
+      vi.advanceTimersByTime(300);
+
+      const searchReq = http.expectOne((req) => req.url === ROUTE_ENDPOINTS.search);
+      expect(searchReq.request.params.get('q')).toBe('Vesuvio');
+      const geoReq = http.expectOne((req) => req.url === OPEN_METEO_GEOCODING_URL);
+
+      searchReq.flush([
+        {
+          id: 11,
+          name: 'Monte Vesuvio Trail',
+          category: 'HIKING',
+          difficulty: 'MEDIUM',
+          distanceMeters: 6400,
+          estimatedTimeInMinutes: 110,
+          publisherUsername: 'mario',
+          pictureUrl: null,
+          publicRoute: true,
+          reported: false,
+        },
+      ]);
+      geoReq.flush({ results: [] });
+      fixture.detectChanges();
+
+      const items = host.querySelectorAll('.search-route-item');
+      expect(items).toHaveLength(1);
+      expect(items[0].textContent).toContain('Monte Vesuvio Trail');
+      expect(items[0].textContent).toContain('mario');
+      // Only shown in the list so far, not focused on the map yet
+      expect(sidebar.focusedPublicRoute()).toBeNull();
+    });
+
+    it('should list all routes in a selected place and focus a route on the map when clicked', () => {
+      vi.useFakeTimers();
+      sidebar.open();
+      fixture.detectChanges();
+
+      const input = host.querySelector<HTMLInputElement>('.search-input')!;
+      input.value = 'Napoli';
+      input.dispatchEvent(new Event('input'));
+      vi.advanceTimersByTime(300);
+
+      http.expectOne((req) => req.url === ROUTE_ENDPOINTS.search).flush([]);
+      http.expectOne((req) => req.url === OPEN_METEO_GEOCODING_URL).flush({
+        results: [
+          {
+            id: 101,
+            name: 'Naples',
+            latitude: 40.85,
+            longitude: 14.27,
+            country_code: 'IT',
+            admin1: 'Campania',
+            country: 'Italy',
+          },
+        ],
+      });
+      fixture.detectChanges();
+
+      const placeBtn = host.querySelector<HTMLButtonElement>('.search-place-item')!;
+      expect(placeBtn.textContent).toContain('Naples');
+      placeBtn.click();
+
+      const nearbyReq = http.expectOne((req) => req.url === ROUTE_ENDPOINTS.nearby);
+      expect(nearbyReq.request.params.get('lat')).toBe('40.85');
+      expect(nearbyReq.request.params.get('lon')).toBe('14.27');
+      expect(nearbyReq.request.params.get('radiusKm')).toBe('25');
+
+      nearbyReq.flush([
+        {
+          id: 42,
+          name: 'Posillipo Loop',
+          category: 'WALKING',
+          difficulty: 'EASY',
+          distanceMeters: 4200,
+          estimatedTimeInMinutes: 60,
+          publisherUsername: 'elena',
+          pictureUrl: null,
+          startLatitude: 40.81,
+          startLongitude: 14.21,
+          distanceFromUserKm: 4.5,
+        },
+      ]);
+      fixture.detectChanges();
+
+      const routeBtn = host.querySelector<HTMLButtonElement>('.search-route-item')!;
+      expect(routeBtn.textContent).toContain('Posillipo Loop');
+      expect(routeBtn.textContent).toContain('4.5 km away');
+      expect(sidebar.focusedPublicRoute()).toBeNull();
+
+      routeBtn.click();
+      http.expectOne(ROUTE_ENDPOINTS.publicDetails(42)).flush({
+        route: {
+          id: 42,
+          name: 'Posillipo Loop',
+          category: 'WALKING',
+          difficulty: 'EASY',
+          distanceMeters: 4200,
+          estimatedTimeInMinutes: 60,
+          publisherUsername: 'elena',
+          pictureUrl: null,
+          publicRoute: true,
+          reported: false,
+        },
+        points: [
+          { latitude: 40.81, longitude: 14.21, elevation: 50, name: null },
+          { latitude: 40.82, longitude: 14.22, elevation: 95, name: null },
+        ],
+      });
+      fixture.detectChanges();
+
+      expect(sidebar.focusedPublicRoute()?.details.route.id).toBe(42);
+      expect(host.querySelector('.route-name')?.textContent).toContain('Posillipo Loop');
+    });
   });
 });

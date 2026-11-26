@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -160,6 +161,41 @@ class RouteServiceTest {
                 gpx(VALID_GPX), null));
 
         verify(routeRepository, never()).save(any());
+    }
+
+    @Test
+    void searchPublicRoutes_withBlankQuery_returnsEmptyWithoutQueryingRepository() {
+        assertTrue(routeService.searchPublicRoutes("   ").isEmpty());
+        assertTrue(routeService.searchPublicRoutes(null).isEmpty());
+
+        verify(routeRepository, never())
+                .findByIsPublicTrueAndReportsIsEmptyAndNameContainingIgnoreCaseOrderByNameAsc(any());
+    }
+
+    @Test
+    void searchPublicRoutes_trimsQueryAndReturnsMatchingSummaries() {
+        User author = User.builder().email("mario@test.com").username("mario").password("x").build();
+        Route route = Route.builder()
+                .id(7)
+                .name("Monte Vesuvio Trail")
+                .category(RouteCategory.HIKING)
+                .difficulty(Difficulty.MEDIUM)
+                .publisher(author)
+                .lengthInMeters(6400.0)
+                .estimatedTimeInMinutes(110)
+                .isPublic(true)
+                .build();
+        when(routeRepository.findByIsPublicTrueAndReportsIsEmptyAndNameContainingIgnoreCaseOrderByNameAsc("vesuvio"))
+                .thenReturn(List.of(route));
+
+        List<RouteSummaryDTO> results = routeService.searchPublicRoutes("  vesuvio  ");
+
+        assertEquals(1, results.size());
+        assertEquals(7, results.getFirst().getId());
+        assertEquals("Monte Vesuvio Trail", results.getFirst().getName());
+        assertEquals("mario", results.getFirst().getPublisherUsername());
+        assertTrue(results.getFirst().isPublicRoute());
+        assertFalse(results.getFirst().isReported());
     }
 
     private MockMultipartFile gpx(String content) {

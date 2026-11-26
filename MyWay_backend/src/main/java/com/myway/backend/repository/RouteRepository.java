@@ -34,4 +34,8 @@ public interface RouteRepository extends JpaRepository<Route, Integer> {
             double minLon,
             double maxLon
     );
+
+    // Visible public routes whose name contains the search text (case-insensitive)
+    @EntityGraph(attributePaths = {"publisher"})
+    List<Route> findByIsPublicTrueAndReportsIsEmptyAndNameContainingIgnoreCaseOrderByNameAsc(String name);
 }
