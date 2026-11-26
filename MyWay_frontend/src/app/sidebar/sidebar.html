@@ -39,8 +39,11 @@
 
       @if (summary(); as route) {
       <div class="route-heading">
-        <span class="route-caption">{{ route.isGpx ? 'GPX route' : 'Created route' }}</span>
-        <h2 class="route-name">{{ route.name }}</h2>
+        <span class="route-caption">{{ route.isPublicRoute ? 'Public route' : route.isGpx ? 'GPX route' : 'Created route' }}</span>        
+        <h3 class="route-name">{{ route.name }}</h3>
+        @if (route.publisher) {
+        <p class="stats-note">Published by {{ route.publisher }}</p>
+        }
       </div>
 
       @if (route.category || route.difficulty) {
@@ -109,23 +112,81 @@
       </div>
 
       <!-- Custom Route -->
+      @if (!route.isPublicRoute) {
       <button type="button" class="btn-primary" (click)="openEditTrackModal()">
         Custom Route
       </button>
+        <!-- Save Route -->
+        <button type="button" class="btn-primary" (click)="openSaveRouteModal()" style="margin-top: 8px; background-color: #2563eb;">
+          Save Route
+        </button>
 
       <button type="button" class="btn-secondary" (click)="openPublishModal()">
         Publish Route
       </button>
+      }
+
+      @if (route.isPublicRoute) {
+      <button type="button" class="btn-secondary" [disabled]="isReporting()" (click)="reportPublicRoute()">
+        {{ isReporting() ? 'Reporting…' : 'Report' }}
+      </button>
+      }
       } @else {
-      <div class="empty-state">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8"
-          stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="6" cy="19" r="3" />
-          <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
-          <circle cx="18" cy="5" r="3" />
-        </svg>
-        <p>Click on a route on the map, or create a new one, to see its stats here.</p>
-      </div>
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="6" cy="19" r="3" />
+            <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
+            <circle cx="18" cy="5" r="3" />
+          </svg>
+          <p>Click on a route on the map, or create a new one, to see its stats here.</p>
+        </div>
+      }
+    </section>
+    
+    <section class="panel-section" style="margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+      <h3 class="section-title">Your saved folders</h3>
+
+      @if (userFolders().length === 0) {
+        <p style="font-size: 13px; color: #6b7280; font-style: italic;">No folders found.</p>
+      }
+
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+        @for (folder of userFolders(); track folder.id) {
+          <button 
+            type="button"
+            (click)="fetchRoutesForFolder(folder.id)"
+            style="width: 100%; text-align: left; padding: 8px 12px; font-size: 14px; font-weight: 500; border-radius: 6px; border: 1px solid #e5e7eb; cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+            [style.background-color]="activeFolderIdForRoutes() === folder.id ? '#eff6ff' : '#f9fafb'"
+            [style.color]="activeFolderIdForRoutes() === folder.id ? '#1d4ed8' : '#374151'">
+            <span> {{ folder.name }}</span>
+            <span style="font-size: 11px; color: #9ca3af;">View</span>
+          </button>
+        }
+     </div>
+     @if (activeFolderIdForRoutes() !== null) {
+        <div style="margin-top: 16px; padding-left: 8px; border-left: 2px solid #3b82f6;">
+          <h4 style="font-size: 12px; font-weight: 600; color: #4b5563; margin-bottom: 6px;">Routes in the folder:</h4>
+          
+          @if (savedRoutes().length === 0) {
+            <p style="font-size: 12px; color: #9ca3af; font-style: italic;">No routes in this folder.</p>
+          } @else {
+  <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px;">
+    @for (route of savedRoutes(); track route.id) {
+      <li>
+        <button 
+          type="button"
+          (click)="loadRouteToMap(route.id)"
+          style="width: 100%; text-align: left; font-size: 12px; color: #374151; padding: 6px 8px; background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+          title="Click to load this route on the map">
+          <span> {{ route.name }}</span>
+          <span style="font-size: 10px; color: #2563eb; font-weight: 500;">Load ➔</span>
+        </button>
+      </li>
+    }
+  </ul>
+}
+        </div>
       }
 
     </section>
@@ -222,6 +283,65 @@
 </div>
 }
 
+
+<!-- pop up save route modal with exclusive input handling -->
+@if (isSavingRoute()) {
+  <div class="edit-modal-backdrop" (click)="closeSaveRouteModal()">
+    <div class="edit-modal-card" (click)="$event.stopPropagation()">
+      <div class="edit-modal-header">
+        <h3>Save Route</h3>
+        <button type="button" class="btn-close-modal" (click)="closeSaveRouteModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="edit-modal-body">
+        <div class="edit-group">
+          <label class="edit-label" for="route-name-input">Route name:</label>
+          <input
+            id="route-name-input"
+            type="text"
+            class="edit-text-input"
+            [value]="routeNameToSave()"
+            placeholder="Es. Giro del lago"
+            (input)="routeNameToSave.set($any($event.target).value)" />
+        </div>
+
+        <div class="edit-group">
+          <label class="edit-label" for="folder-select">Choose existing folder:</label>
+          <select
+            id="folder-select"
+            class="edit-text-input"
+            [value]="selectedFolderId() ?? ''"
+            (change)="onFolderSelected($any($event.target).value)">
+            <option value="">-- Select a folder --</option>
+            @for (folder of userFolders(); track folder.id) {
+              <option [value]="folder.id">{{ folder.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div style="text-align: center; margin: 12px 0; color: #64748b; font-size: 13px; font-weight: 500;">
+          — OR —
+        </div>
+
+        <div class="edit-group">
+          <label class="edit-label" for="new-folder-input">Create new folder:</label>
+          <input
+            id="new-folder-input"
+            type="text"
+            class="edit-text-input"
+            [value]="newFolderName()"
+            placeholder="Type new folder name..."
+            (input)="onNewFolderInput($any($event.target).value)" />
+        </div>
+      </div>
+
+      <div class="edit-modal-footer">
+        <button type="button" class="btn-modal-cancel" (click)="closeSaveRouteModal()">Cancel</button>
+        <button type="button" class="btn-modal-save" (click)="confirmSaveRoute()">Save Route</button>
+      </div>
+    </div>
+  </div>
+}
 <!-- pop up publish route -->
 @if (isPublishOpen()) {
 <div class="edit-modal-backdrop" (click)="closePublishModal()">

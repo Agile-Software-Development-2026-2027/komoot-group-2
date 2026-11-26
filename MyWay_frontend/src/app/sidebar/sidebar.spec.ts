@@ -30,7 +30,6 @@ describe('Sidebar', () => {
       imports: [Sidebar],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
-
     fixture = TestBed.createComponent(Sidebar);
     sidebar = TestBed.inject(SidebarService);
     http = TestBed.inject(HttpTestingController);

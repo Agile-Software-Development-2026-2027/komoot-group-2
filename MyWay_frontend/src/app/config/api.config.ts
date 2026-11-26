@@ -18,9 +18,16 @@ export const WAYPOINT_ENDPOINTS = {
 export const ROUTE_ENDPOINTS = {
   publish: `${API_BASE_URL}/api/routes/publish`,
   publicList: `${API_BASE_URL}/api/routes/public`,
+  nearby: `${API_BASE_URL}/api/routes/nearby`,
   mine: `${API_BASE_URL}/api/routes/mine`,
   publicDetails: (id: number) => `${API_BASE_URL}/api/routes/public/${id}`,
   report: (id: number) => `${API_BASE_URL}/api/routes/${id}/report`,
+} as const;
+
+/** Backend endpoints for the user's folders and the routes saved in them (login required). */
+export const FOLDER_ENDPOINTS = {
+  folders: `${API_BASE_URL}/api/folders`,
+  savedRoutes: `${API_BASE_URL}/api/saved-routes`,
 } as const;
 
 /** GET ?fromLat=&fromLon=&toLat=&toLon= returns the walking route between two points. */

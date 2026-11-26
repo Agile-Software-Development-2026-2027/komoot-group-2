@@ -23,6 +23,7 @@ import { TrackStyleHandler } from '../services/track-style-handler.service';
 import { LatLon, PlannedRoute, RoutePlannerService } from '../services/route-planner.service';
 import { SIDEBAR_MAP_OVERLAP_PX, SidebarService } from '../services/sidebar.service';
 import { formatDistance, formatDuration } from '../utils/route-stats';
+import { NearbyRoute, NEARBY_ROUTES_RADIUS_KM, RouteDetails, RoutePublishingService } from '../services/route-publishing.service';
 
 L.Marker.prototype.options.icon = L.icon({
   iconUrl: 'leaflet/marker-icon.png',
@@ -163,6 +164,25 @@ export function createWaypointIcon(wp: GpxWaypoint): L.DivIcon {
   });
 }
 
+
+/** Pin for the start of a public route: a drop in the category color with a winding path inside. */
+export function createRouteStartIcon(color: string): L.DivIcon {
+  return L.divIcon({
+    className: 'route-start-pin',
+    html: `
+      <svg viewBox="0 0 32 40" width="32" height="40" style="display:block; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35));">
+        <path d="M16 1.5C8.5 1.5 2.5 7.5 2.5 15c0 10 13.5 23.5 13.5 23.5S29.5 25 29.5 15C29.5 7.5 23.5 1.5 16 1.5z"
+              fill="${color}" stroke="#ffffff" stroke-width="2"/>
+        <path d="M11.5 22.5C11.5 17 20.5 19 20.5 12" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="11.5" cy="22.5" r="2.6" fill="#ffffff"/>
+        <circle cx="20.5" cy="11.5" r="2.6" fill="${color}" stroke="#ffffff" stroke-width="1.8"/>
+      </svg>`,
+    iconSize: [32, 40],
+    iconAnchor: [16, 40],
+    tooltipAnchor: [0, -36],
+  });
+}
+
 interface MapStyle {
   id: string;
   label: string;
@@ -224,6 +244,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly placement = inject(WaypointPlacementService);
   protected readonly routePlanner = inject(RoutePlannerService);
+  private readonly routePublishing = inject(RoutePublishingService);
 
   /** When active, clicks on the map set the start and destination of a route */
   public readonly planningMode = signal(false);
@@ -247,6 +268,15 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private plannedRouteGroup?: L.FeatureGroup; // start/end markers and planned route
   private routeLayer?: L.Polyline; // planned route line
   private routeSubscription?: Subscription;
+  /** Start markers of the public routes near the user */
+  private nearbyRouteLayer?: L.FeatureGroup;
+  /** Pins of the nearby routes by route id, so a reported route can be removed */
+  private readonly nearbyMarkers = new Map<number, L.Marker>();
+  private nearbyRoutesSubscription?: Subscription;
+
+  /** Full line of the public route the user clicked on */
+  private publicRouteLayer?: L.FeatureGroup;
+  private publicRouteRequest?: Subscription;
 
   private gpxLayerGroup?: L.FeatureGroup;
   /** Visible lines of each rendered GPX track (without the invisible click areas) */
@@ -294,6 +324,8 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       }
       this.toggleStylePanel(false);
       this.closeWaypointDetails();
+      this.publicRouteLayer?.clearLayers();
+      this.sidebar.clearPublicRoute();
       if (!this.planningMode()) {
         this.sidebar.close();
       }
@@ -301,6 +333,8 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         this.routePlanner.selectPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
       }
     });
+
+    this.publicRouteLayer = L.featureGroup().addTo(this.map);
 
     // Redraw the start/end markers and the planned route whenever they change
     this.plannedRouteGroup = L.featureGroup().addTo(this.map);
@@ -351,6 +385,17 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       { injector: this.injector },
     );
 
+      // A public route was reported from the sidebar: remove its pin and its line
+    effect(
+      () => {
+        const reportedId = this.sidebar.reportedRouteId();
+        if (reportedId !== null) {
+          untracked(() => this.removeReportedRoute(reportedId));
+        }
+      },
+      { injector: this.injector },
+    );
+
     // Subscribe to loaded GPX
     this.gpxSubscription = this.gpxService.currentGpx$.subscribe((gpx) => {
       if (gpx) {
@@ -358,6 +403,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       }
     });
     this.publicWaypointLayer = L.featureGroup().addTo(this.map);
+    this.nearbyRouteLayer = L.featureGroup().addTo(this.map);
     this.newWaypointLayer = L.featureGroup().addTo(this.map);
     void this.loadNearbyWaypoints();
 
@@ -610,9 +656,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     if (isFallback) {
       this.gpxService.showNotification({
         type: 'error',
-        message: 'Your location is not available: showing the waypoints near the center of Italy.',
+        message: 'Your location is not available: showing the waypoints and routes near the center of Italy.',
       });
     }
+    this.loadNearbyRoutes(position);
     this.nearbySubscription = this.waypointApi.loadNearby(position, NEARBY_RADIUS_KM).subscribe({
       next: (waypoints) => this.renderPublicWaypoints(waypoints),
       error: () =>
@@ -636,6 +683,86 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Loads the public routes within 100 km of the position. */
+  private loadNearbyRoutes(position: LatLon): void {
+    this.nearbyRoutesSubscription?.unsubscribe();
+    this.nearbyRoutesSubscription = this.routePublishing
+      .getNearbyRoutes(position, NEARBY_ROUTES_RADIUS_KM)
+      .subscribe({
+        next: (routes) => this.renderNearbyRoutes(routes),
+        error: () =>
+          this.gpxService.showNotification({ type: 'error', message: 'Could not load the nearby routes.' }),
+      });
+  }
+
+    /** Draws one start pin for each nearby public route, colored by its category. */
+    /** Draws one start pin for each nearby public route, colored by its category. */
+  public renderNearbyRoutes(routes: NearbyRoute[]): void {
+    if (!this.nearbyRouteLayer) return;
+    this.nearbyRouteLayer.clearLayers();
+    this.nearbyMarkers.clear();
+    for (const route of routes) {
+      const category = route.category.toLowerCase() as RouteCategory;
+      const color = ROUTE_CATEGORY_CONFIG[category]?.defaultColor ?? '#10b981';
+      const marker = L.marker([route.startLatitude, route.startLongitude], {
+        icon: createRouteStartIcon(color),
+        riseOnHover: true,
+      })
+        .bindTooltip(route.name)
+        .on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          this.openNearbyRoute(route);
+        });
+      marker.addTo(this.nearbyRouteLayer);
+      this.nearbyMarkers.set(route.id, marker);
+    }
+  }
+
+    /** Loads the full route of a clicked pin, draws it and shows its details in the sidebar. */
+  private openNearbyRoute(route: NearbyRoute): void {
+    this.publicRouteRequest?.unsubscribe();
+    this.publicRouteRequest = this.routePublishing.getPublicRouteById(route.id).subscribe({
+      next: (details) => {
+        this.drawPublicRoute(details);
+        this.sidebar.showPublicRoute(details);
+      },
+      error: () =>
+        this.gpxService.showNotification({ type: 'error', message: 'Could not load this route. Try again later.' }),
+    });
+  }
+
+  /** Draws the whole line of a public route (and an end marker), replacing the previous one. */
+  private drawPublicRoute(details: RouteDetails): void {
+    if (!this.map || !this.publicRouteLayer) return;
+    this.publicRouteLayer.clearLayers();
+    if (details.points.length === 0) return;
+
+    const latLngs = details.points.map((p): L.LatLngTuple => [p.latitude, p.longitude]);
+    const category = details.route.category.toLowerCase() as RouteCategory;
+    const color = ROUTE_CATEGORY_CONFIG[category]?.defaultColor ?? '#10b981';
+
+    L.polyline(latLngs, { color, weight: 5, opacity: 0.9, lineJoin: 'round' }).addTo(this.publicRouteLayer);
+    L.marker(latLngs[latLngs.length - 1], { icon: END_ICON, title: 'End' }).addTo(this.publicRouteLayer);
+
+    // Keep the line out from under the sidebar, which opens on the right
+    const padding = 40;
+    const rightPadding = Math.min(SIDEBAR_MAP_OVERLAP_PX, this.map.getSize().x / 2);
+    this.map.fitBounds(L.latLngBounds(latLngs), {
+      paddingTopLeft: [padding, padding],
+      paddingBottomRight: [rightPadding, padding],
+      maxZoom: 16,
+    });
+  }
+
+  /** Removes the pin and the line of a route that has just been reported. */
+  private removeReportedRoute(routeId: number): void {
+    const marker = this.nearbyMarkers.get(routeId);
+    if (marker) {
+      this.nearbyRouteLayer?.removeLayer(marker);
+      this.nearbyMarkers.delete(routeId);
+    }
+    this.publicRouteLayer?.clearLayers();
+  }
 
   //POP-UP Showing Info
   public selectedWaypoint = signal<GpxWaypoint | null>(null);
@@ -959,9 +1086,13 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
     this.gpxSubscription?.unsubscribe();
     this.styleSubscription?.unsubscribe();
     this.nearbySubscription?.unsubscribe();
+    this.nearbyRoutesSubscription?.unsubscribe();
+    this.nearbyRouteLayer = undefined;
     this.placement.stop();
     this.publishSubscription?.unsubscribe();
     this.publicWaypointLayer = undefined;
+    this.publicRouteRequest?.unsubscribe();
+    this.publicRouteLayer = undefined;
     this.map?.remove();
   }
 

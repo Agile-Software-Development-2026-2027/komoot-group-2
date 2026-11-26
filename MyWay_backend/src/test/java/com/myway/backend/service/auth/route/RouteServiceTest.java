@@ -89,6 +89,8 @@ class RouteServiceTest {
         assertEquals(5000.0, saved.getLengthInMeters());
         assertEquals(90, saved.getEstimatedTimeInMinutes());
         assertNull(saved.getPicturePath());
+        assertEquals(41.0, saved.getStartLatitude(), 1e-9);
+        assertEquals(13.0, saved.getStartLongitude(), 1e-9);
 
         // the stored path is absolute and the file really exists
         assertTrue(Path.of(saved.getGpxPath()).isAbsolute());
