@@ -17,6 +17,10 @@ export interface SavedRoutePoint {
 export interface SavedRoute {
   id: number;
   name: string;
+  folderId?: number;
+  /** Id of the Route (published, public or private) this saved route points to. */
+  route?: { id: number };
+  /** Track points, only returned when a single saved route is requested. */
   points?: SavedRoutePoint[];
 }
 
@@ -43,7 +47,8 @@ export class SavedRoutesService {
     return this.http.get<SavedRoute>(`${FOLDER_ENDPOINTS.savedRoutes}/${id}`);
   }
 
-  saveRoute(folderId: number, name: string, points: SavedRoutePoint[]): Observable<SavedRoute> {
-    return this.http.post<SavedRoute>(FOLDER_ENDPOINTS.savedRoutes, { folderId, name, points });
+  /** Saves an existing Route (own or public) in a folder. */
+  saveRoute(folderId: number, name: string, routeId: number, waypointIds: number[] = []): Observable<SavedRoute> {
+    return this.http.post<SavedRoute>(FOLDER_ENDPOINTS.savedRoutes, { folderId, name, routeId, waypointIds });
   }
 }
