@@ -1,11 +1,11 @@
 package com.myway.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
+/** A route saved by a user in one of their folders: a name plus a reference to a Route and its waypoints. */
 @Entity
 @Table(name = "saved_routes")
 public class SavedRoute {
@@ -17,23 +17,24 @@ public class SavedRoute {
     @Column(nullable = false)
     private String name;
 
-    // foreign key to Folder
-    @JsonIgnore
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "folder_id", nullable = false)
     private Folder folder;
 
-    @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("pointOrder ASC")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "route_id", nullable = false)
+    private Route route;
+
+    @OneToMany(mappedBy = "savedRoute", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RoutePoint> points = new ArrayList<>();
 
-    // empty constructor (required by JPA)
     public SavedRoute() {
     }
 
-    public SavedRoute(String name, Folder folder) {
+    public SavedRoute(String name, Folder folder, Route route) {
         this.name = name;
         this.folder = folder;
+        this.route = route;
     }
 
     public Long getId() { return id; }
@@ -44,6 +45,9 @@ public class SavedRoute {
 
     public Folder getFolder() { return folder; }
     public void setFolder(Folder folder) { this.folder = folder; }
+
+    public Route getRoute() { return route; }
+    public void setRoute(Route route) { this.route = route; }
 
     public List<RoutePoint> getPoints() { return points; }
     public void setPoints(List<RoutePoint> points) { this.points = points; }
