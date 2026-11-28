@@ -30,6 +30,9 @@ export const FOLDER_ENDPOINTS = {
   savedRoutes: `${API_BASE_URL}/api/saved-routes`,
 } as const;
 
+/** GET returns the statistics computed on the routes in the user's folders (login required). */
+export const STATISTICS_ENDPOINT = `${API_BASE_URL}/api/statistics`;
+
 /** GET ?fromLat=&fromLon=&toLat=&toLon= returns the walking route between two points. */
 export const ROUTING_ENDPOINT = `${API_BASE_URL}/api/routing`;
 
