@@ -1,4 +1,6 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject, signal } from '@angular/core';
+import { STATISTICS_ENDPOINT } from '../config/api.config';
 import { RouteCategory, RouteDifficulty, WaypointCategory } from './gpx.service';
 
 /** A completed route of the user (only the fields the statistics need). */
@@ -41,12 +43,59 @@ export function computeStatistics(routes: readonly CompletedRoute[]): UserStatis
   };
 }
 
-/**
- * Source of the user's statistics. There is no backend yet: the list of completed routes is
- * empty until the data is loaded from the server.
- */
+/** Statistics as returned by the backend (enum names as keys). */
+interface UserStatisticsResponse {
+  tripCount: number;
+  totalDurationSeconds: number;
+  totalDistanceMeters: number;
+  totalElevationGainMeters: number;
+  routeTypes: Record<string, number>;
+  difficulties: Record<string, number>;
+  waypointCategories: Record<string, number>;
+}
+
+const EMPTY_STATISTICS: UserStatistics = computeStatistics([]);
+
+/** Backend enum name (HIKING, PANORAMIC_VIEW, MEDIUM...) -> frontend key. */
+function mapKeys<T extends string>(counts: Record<string, number>, rename: Record<string, T> = {}): Partial<Record<T, number>> {
+  const result: Partial<Record<T, number>> = {};
+  for (const [key, n] of Object.entries(counts ?? {})) {
+    const k = (rename[key] ?? key.toLowerCase().replace(/_/g, ' ')) as T;
+    result[k] = n;
+  }
+  return result;
+}
+
+/** Statistics of the routes saved in the user's folders, computed by the backend. */
 @Injectable({ providedIn: 'root' })
 export class StatisticsService {
-  readonly completedRoutes = signal<CompletedRoute[]>([]);
-  readonly statistics = computed(() => computeStatistics(this.completedRoutes()));
+  private readonly http = inject(HttpClient);
+
+  readonly statistics = signal<UserStatistics>(EMPTY_STATISTICS);
+  readonly loading = signal(false);
+  readonly error = signal(false);
+
+  load(): void {
+    this.loading.set(true);
+    this.error.set(false);
+    this.http.get<UserStatisticsResponse>(STATISTICS_ENDPOINT).subscribe({
+      next: (r) => {
+        this.statistics.set({
+          tripCount: r.tripCount,
+          totalDurationSeconds: r.totalDurationSeconds,
+          totalDistanceMeters: r.totalDistanceMeters,
+          totalElevationGainMeters: r.totalElevationGainMeters,
+          routeTypes: mapKeys<RouteCategory>(r.routeTypes),
+          difficulties: mapKeys<RouteDifficulty>(r.difficulties, { MEDIUM: 'intermediate' }),
+          waypointCategories: mapKeys<WaypointCategory>(r.waypointCategories),
+        });
+        this.loading.set(false);
+      },
+      error: () => {
+        this.statistics.set(EMPTY_STATISTICS);
+        this.error.set(true);
+        this.loading.set(false);
+      },
+    });
+  }
 }

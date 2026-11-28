@@ -15,6 +15,10 @@ public interface SavedRouteRepository extends JpaRepository<SavedRoute, Long> {
     @EntityGraph(attributePaths = {"route", "route.publisher", "points", "points.waypoint"})
     List<SavedRoute> findByFolderId(Long folderId);
 
+    // All the saved routes of the folders owned by a user (used by the statistics)
+    @EntityGraph(attributePaths = {"route", "points", "points.waypoint"})
+    List<SavedRoute> findByFolderUserEmail(String userEmail);
+
     @Override
     @EntityGraph(attributePaths = {"route", "route.publisher", "points", "points.waypoint", "folder"})
     Optional<SavedRoute> findById(Long id);

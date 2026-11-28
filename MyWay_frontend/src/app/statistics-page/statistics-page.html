@@ -1,6 +1,8 @@
 <section class="stats">
   <h1 class="stats-title">Statistics</h1>
 
+  <p class="stats-source">Data taken from the routes saved in your folders.</p>
+
   @if (!auth.isLoggedIn()) {
     <div class="stats-message">
       <p>Log in to see your statistics.</p>
@@ -8,7 +10,7 @@
     </div>
   } @else if (stats().tripCount === 0) {
     <div class="stats-message">
-      <p>You have not completed any routes yet.</p>
+      <p>You have no routes saved in your folders yet.</p>
     </div>
   } @else {
     <div class="stat-cards">
