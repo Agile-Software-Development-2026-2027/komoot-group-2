@@ -49,6 +49,14 @@ const LAYERS_ICON = `
   <path d="m2 12 10 5 10-5" />
   <path d="m2 17 10 5 10-5" />
 </svg>`;
+const RADAR_ICON = `
+<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="9" />
+  <circle cx="12" cy="12" r="4.5" />
+  <path d="M12 12 18.4 5.6" />
+  <circle cx="12" cy="12" r="0.8" fill="currentColor" />
+</svg>`;
 
 const START_ICON = L.divIcon({
   className: 'route-marker route-marker-start',
@@ -256,6 +264,7 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
   private styleItems: { id: string; el: HTMLElement }[] = [];
   private stylePanel?: HTMLElement;
   private planButton?: HTMLAnchorElement;
+  private filterButton?: HTMLAnchorElement;
   private plannedRouteGroup?: L.FeatureGroup; // start/end markers and planned route
   private routeLayer?: L.Polyline; // planned route line
   private routeSubscription?: Subscription;
@@ -365,6 +374,13 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
         if (update) {
           this.routeLayer?.setStyle({ color: update.color, weight: update.weight });
         }
+      },
+      { injector: this.injector },
+    );
+    effect(
+      () => {
+        const active = this.sidebar.isOpen() && this.sidebar.mode() === 'filters';
+        this.filterButton?.classList.toggle('active', active);
       },
       { injector: this.injector },
     );
@@ -980,6 +996,10 @@ export class ItalyMap implements AfterViewInit, OnDestroy {
       this.planButton = this.createToolButton(bar, PEN_ICON, 'Plan a route', () => {
         this.togglePlanningMode();
       });
+      // Radar icon: filter routes and waypoints
+      this.filterButton = this.createToolButton(bar, RADAR_ICON, 'Filter routes and waypoints', () =>{
+        this.sidebar.showFilters();
+      }) ;
 
       // Map Style icon
       this.createToolButton(bar, LAYERS_ICON, 'Map style', () => {

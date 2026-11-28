@@ -1,10 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import {
-  DEFAULT_ROUTE_FILTERS,
-  MAX_ALTITUDE_METERS,
-  MIN_ALTITUDE_METERS,
-  RouteFilters,
-} from '../utils/route-filter';
+import {ALL_DIFFICULTIES,DEFAULT_ROUTE_FILTERS, MAX_ALTITUDE_METERS,RouteFilters } from '../utils/route-filter';
 import type { RouteDifficulty } from './gpx.service';
 import type { LatLon } from './route-planner.service';
 
@@ -14,17 +9,20 @@ import type { LatLon } from './route-planner.service';
 export class RouteFilterService {
   readonly center = signal<LatLon | null>(DEFAULT_ROUTE_FILTERS.center);
   readonly radiusKm = signal(DEFAULT_ROUTE_FILTERS.radiusKm);
-  readonly difficulty = signal<RouteDifficulty | null>(DEFAULT_ROUTE_FILTERS.difficulty);
-  readonly minAltitude = signal(DEFAULT_ROUTE_FILTERS.minAltitude);
+  readonly difficulties = signal<RouteDifficulty []>([...DEFAULT_ROUTE_FILTERS.difficulties]);
   readonly maxAltitude = signal(DEFAULT_ROUTE_FILTERS.maxAltitude);
+  readonly totKm= signal<number|null>(DEFAULT_ROUTE_FILTERS.totKm);
+  readonly time= signal<number|null>(DEFAULT_ROUTE_FILTERS.time);
 
   /** All the filters together: the map reads this one */
   readonly filters = computed<RouteFilters>(() => ({
     center: this.center(),
     radiusKm: this.radiusKm(),
-    difficulty: this.difficulty(),
-    minAltitude: this.minAltitude(),
+    difficulties: this.difficulties(),
     maxAltitude: this.maxAltitude(),
+    totKm: this.totKm(),
+    time: this.time()
+
   }));
 
   setCenter(center: LatLon | null): void {
@@ -34,24 +32,42 @@ export class RouteFilterService {
   setRadius(km: number): void {
     this.radiusKm.set(km);
   }
+  // true while the next click on the map chooses the center of the radius
+   readonly pickingCenter = signal(false);
 
+   startPickingCenter(): void {
+    this.pickingCenter.set(true);
+   }
+   // turns the radius filter off
+   clearCenter(): void{
+    this.center.set(null);
+    this.pickingCenter.set(false);
+   }
+   // turn a difficulty button off if it is on, and on if it is off
   toggleDifficulty(difficulty: RouteDifficulty): void {
-    this.difficulty.set(this.difficulty() === difficulty ? null : difficulty);
+    this.difficulties.update((current)=> current.includes(difficulty)
+    ? current.filter((d) => d !== difficulty)
+    : [...current,difficulty]);
   }
-
-  setMinAltitude(meters: number): void {
-    this.minAltitude.set(Math.min(Math.max(meters, MIN_ALTITUDE_METERS), this.maxAltitude()));
-  }
-
+  // the altitude is kept between 0 and maximum of the slider
   setMaxAltitude(meters: number): void {
-    this.maxAltitude.set(Math.max(Math.min(meters, MAX_ALTITUDE_METERS), this.minAltitude()));
+    this.maxAltitude.set(Math.min(Math.max(meters, 0), MAX_ALTITUDE_METERS));
+  }
+  //maximum length in km (null: no limit)
+  setTotKm(km: number | null): void{
+    this.totKm.set(km);
+  }
+  //maximum time in hours (null: no limit)
+  setTime(hours: number|null): void{
+    this.time.set(hours);
   }
 
   reset(): void {
     this.center.set(DEFAULT_ROUTE_FILTERS.center);
     this.radiusKm.set(DEFAULT_ROUTE_FILTERS.radiusKm);
-    this.difficulty.set(DEFAULT_ROUTE_FILTERS.difficulty);
-    this.minAltitude.set(DEFAULT_ROUTE_FILTERS.minAltitude);
+    this.difficulties.set([...ALL_DIFFICULTIES]);
     this.maxAltitude.set(DEFAULT_ROUTE_FILTERS.maxAltitude);
+    this.totKm.set(DEFAULT_ROUTE_FILTERS.totKm);
+    this.time.set(DEFAULT_ROUTE_FILTERS.time);
   }
 }

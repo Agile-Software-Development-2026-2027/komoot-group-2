@@ -44,6 +44,8 @@ export const DEFAULT_PLANNED_DETAILS: PlannedRouteDetails = {
 
 /** Where the elevation stats come from: the GPX file itself or the Open-Meteo terrain model */
 export type ElevationSource = 'gpx' | 'open-meteo';
+//the sidebar shows the stats of a route and filters
+export type SidebarMode = 'route' | 'filters';
 
 export type ElevationState =
   | { status: 'idle' }
@@ -62,6 +64,7 @@ export class SidebarService {
   private readonly gpxService = inject(GpxService);
 
   readonly isOpen = signal(false);
+  readonly mode = signal<SidebarMode>('route');
   readonly selectedRoute = signal<SidebarRoute | null>(null);
   readonly elevation = signal<ElevationState>({ status: 'idle' });
   readonly trackColorUpdate = signal<{ track: GpxTrack; color: string; weight: number } | null>(null);
@@ -103,6 +106,11 @@ export class SidebarService {
 
   close(): void {
     this.isOpen.set(false);
+  }
+  // Opens the sidebar on the filters
+  showFilters(): void{
+    this.mode.set('filters');
+    this.open();
   }
 
   /** Opens the sidebar on the stats of a GPX track; the file's waypoints provide the photos */
@@ -182,6 +190,7 @@ export class SidebarService {
   private select(route: SidebarRoute): void {
     this.elevationRequest?.unsubscribe();
     this.selectedRoute.set(route);
+    this.mode.set('route');
     this.open();
   }
 
